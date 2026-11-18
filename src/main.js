@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/addons/controls/MapControls.js';
+import { makeBoundary, keepInside } from './boundary.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -57,6 +58,9 @@ progress(55, 'Building the city…');
 await nextFrame();
 const world = buildWorld(data, renderer);
 scene.add(world.group);
+// the digital wall around the map: you can see past it, not go past it
+const boundary = makeBoundary(meta.ext);
+scene.add(boundary.mesh);
 const sportsWorld = sports ? buildSports(sports, world) : { group: new THREE.Group(), pitches: [] };
 scene.add(sportsWorld.group);
 // people, DVB tram line 11 and the tram simulator
@@ -81,7 +85,8 @@ let effects = true;
 
 // ---------- controls / modes ----------
 const controls = new MapControls(camera, canvas);
-controls.enableDamping = true; controls.dampingFactor = 0.09;
+controls.enableDamping = true; controls.dampingFactor = 0.07;
+controls.rotateSpeed = 0.6; controls.panSpeed = 0.7; controls.zoomSpeed = 0.7; // a little slower and calmer than the defaults
 controls.minDistance = 30; controls.maxDistance = 12000; controls.maxPolarAngle = 1.5; controls.zoomToCursor = true;
 const fly = new FlyMode(camera, scene, world);
 const boat = new BoatMode(camera, scene, world, project(51.0562, 13.7425));
@@ -228,7 +233,7 @@ function flyTo(x, z, dist = 520) {
 }
 function stepTween(dt) {
   if (!tween) return;
-  tween.t = Math.min(1, tween.t + dt / 1.5);
+  tween.t = Math.min(1, tween.t + dt / 2.1);
   const k = tween.t < 0.5 ? 4 * tween.t ** 3 : 1 - (-2 * tween.t + 2) ** 3 / 2;
   controls.target.lerpVectors(tween.fromT, tween.toT, k);
   camera.position.copy(controls.target).add(tween.fromO.clone().lerp(tween.toO, k));
@@ -632,6 +637,7 @@ function frame() {
     controls.target.y = 0;
     controls.update();
     if (camera.position.y < 4) camera.position.y = 4;
+    if (keepInside(camera.position, meta.ext, 25)) { camera.lookAt(controls.target); if (camera.position.y < 700) boundary.hit(camera.position.x, camera.position.y, camera.position.z); }
     focus.copy(controls.target); range = camera.position.distanceTo(controls.target) * 0.9;
     near = clamp(camera.position.y * 0.03, 1, 30);
   } else if (mode === 'fly') {
@@ -671,6 +677,10 @@ function frame() {
   const shift = campus && mode === 'explore' && vw > 0 && campus.panelWidth() < vw * 0.8 ? campus.panelWidth() / 2 : 0;
   if (shift > 0) camera.setViewOffset(vw, vh, shift, 0, vw, vh); else if (camera.view && camera.view.enabled) camera.clearViewOffset();
   camera.updateProjectionMatrix();
+  boundary.update(time, dt, camera.position);
+  if (mode === 'fly' && fly.bumped) { boundary.hit(fly.pos.x, fly.pos.y, fly.pos.z); fly.bumped = false; }
+  if (mode === 'boat' && boat.bumped) { boundary.hit(boat.x, 6, boat.z); boat.bumped = false; }
+  if (mode === 'bike' && bike.bumped) { boundary.hit(bike.x, 2, bike.z); bike.bumped = false; }
   env.update(time, focus, range, vh);
   labels.update();
   updateInfo();

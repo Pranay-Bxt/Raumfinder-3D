@@ -169,7 +169,40 @@ export function buildWorld(data, renderer) {
   const S = 40000;
   const shape = new THREE.Shape([new THREE.Vector2(-S, -S), new THREE.Vector2(S, -S), new THREE.Vector2(S, S), new THREE.Vector2(-S, S)]);
   shape.holes.push(new THREE.Path([new THREE.Vector2(minX, minZ), new THREE.Vector2(minX, maxZ), new THREE.Vector2(maxX, maxZ), new THREE.Vector2(maxX, minZ)]));
-  const apronMat = new THREE.MeshStandardMaterial({ color: '#cfcabe', roughness: 1, side: THREE.DoubleSide });
+  // countryside helpers: smooth value noise, distance outside the map rectangle
+  const hash2 = (x, z) => { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); };
+  const vnoise = (x, z) => { const xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, fz = z - zi, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz), a = hash2(xi, zi), b = hash2(xi + 1, zi), c = hash2(xi, zi + 1), d = hash2(xi + 1, zi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; };
+  const fbm = (x, z) => 0.5 * vnoise(x, z) + 0.3 * vnoise(x * 2.03 + 5.1, z * 2.03 - 3.7) + 0.2 * vnoise(x * 4.1 - 9.2, z * 4.1 + 1.3);
+  const outside = (x, z) => Math.hypot(Math.max(minX - x, 0, x - maxX), Math.max(minZ - z, 0, z - maxZ));
+  const sstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  // fields: a patchwork texture (redrawn per season) tiled over the flat land outside the map
+  const fieldCv = document.createElement('canvas'); fieldCv.width = fieldCv.height = 512;
+  const apronTex = new THREE.CanvasTexture(fieldCv);
+  apronTex.wrapS = apronTex.wrapT = THREE.RepeatWrapping; apronTex.repeat.set(1 / 2600, 1 / 2600); apronTex.colorSpace = THREE.SRGBColorSpace; apronTex.anisotropy = 8;
+  const FIELDS = {
+    spring: ['#8fae5f', '#a4bf6a', '#7c9c52', '#c9c27a', '#b59a6e', '#9bb865', '#e4d65a'],
+    summer: ['#9aa955', '#c8b768', '#d8c47a', '#7f9a4c', '#b39b62', '#a7b35d', '#cdb15c'],
+    autumn: ['#8c7a52', '#a58e5c', '#6f7a46', '#b49a63', '#7d6a48', '#94884f', '#a07b4a'],
+    winter: ['#e9ecef', '#dfe3e6', '#f2f4f5', '#d6dadc', '#e4e6e3', '#cfd4d6', '#eef0f0'],
+  };
+  function paintFields(season) {
+    const c = fieldCv.getContext('2d'), pal = FIELDS[season] || FIELDS.summer;
+    let sd = 23; const r = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+    c.fillStyle = season === 'winter' ? '#b9c0bd' : '#5d7240'; c.fillRect(0, 0, 512, 512); // hedgerows between fields
+    const split = (x, y, w, h, depth) => {
+      if (depth >= 5 || (w * h < 7000 && r() < 0.7)) {
+        c.fillStyle = pal[Math.floor(r() * pal.length)]; c.fillRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        if (r() < 0.55) { c.globalAlpha = 0.07; c.fillStyle = '#000'; if (w > h) for (let k = 3; k < h - 3; k += 4) c.fillRect(x + 2, y + k, w - 4, 1); else for (let k = 3; k < w - 3; k += 4) c.fillRect(x + k, y + 2, 1, h - 4); c.globalAlpha = 1; }
+        return;
+      }
+      const t = 0.3 + r() * 0.4;
+      if (w > h) { split(x, y, w * t, h, depth + 1); split(x + w * t, y, w * (1 - t), h, depth + 1); } else { split(x, y, w, h * t, depth + 1); split(x, y + h * t, w, h * (1 - t), depth + 1); }
+    };
+    split(0, 0, 512, 512, 0);
+    apronTex.needsUpdate = true;
+  }
+  paintFields('autumn');
+  const apronMat = new THREE.MeshStandardMaterial({ map: apronTex, roughness: 1, side: THREE.DoubleSide });
   const apron = new THREE.Mesh(new THREE.ShapeGeometry(shape).rotateX(Math.PI / 2), apronMat);
   apron.position.y = -0.02;
   group.add(apron);
@@ -180,6 +213,42 @@ export function buildWorld(data, renderer) {
     g.setIndex([0, 1, 2, 0, 2, 3]);
     group.add(new THREE.Mesh(g, wallMat));
   }
+
+  // hills on the horizon: a ring of low-poly countryside rising away from the map (fades into the haze)
+  const hcx = (minX + maxX) / 2, hcz = (minZ + maxZ) / 2, R0 = Math.hypot(W, H) / 2 + 200, R1 = 38000, NA = 360, NR = 30;
+  const hpos = [], hidx = [], hinfo = [];
+  for (let k = 0; k <= NR; k++) {
+    const rr = R0 + (R1 - R0) * Math.pow(k / NR, 1.7);
+    for (let a = 0; a < NA; a++) {
+      const ang = (a / NA) * Math.PI * 2, x = hcx + Math.cos(ang) * rr, z = hcz + Math.sin(ang) * rr;
+      const n = fbm(x / 3200, z / 3200), big = fbm(x / 9000 + 7.3, z / 9000 - 2.1);
+      const rise = sstep(R0, R0 + 4500, rr);
+      const hgt = rise * (25 + 260 * n * n + 340 * big * big * sstep(9000, 20000, rr));
+      hpos.push(x, -0.6 + hgt, z);
+      hinfo.push(fbm(x / 1400 + 3.3, z / 1400 + 8.8), hgt);
+    }
+  }
+  for (let k = 0; k < NR; k++) for (let a = 0; a < NA; a++) { const i0 = k * NA + a, i1 = k * NA + ((a + 1) % NA), j0 = i0 + NA, j1 = i1 + NA; hidx.push(i0, j0, i1, i1, j0, j1); }
+  const hillGeo = new THREE.BufferGeometry();
+  hillGeo.setAttribute('position', new THREE.Float32BufferAttribute(hpos, 3));
+  hillGeo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(hpos.length), 3));
+  hillGeo.setIndex(hidx); hillGeo.computeVertexNormals();
+  const hills = new THREE.Mesh(hillGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  hills.receiveShadow = false; hills.castShadow = false;
+  group.add(hills);
+  const hc = new THREE.Color();
+  function paintHills(season) {
+    const col = hillGeo.attributes.color;
+    for (let i = 0; i < col.count; i++) {
+      const woods = hinfo[i * 2] > 0.52, hgt = hinfo[i * 2 + 1], j = hash2(i, 3) * 0.04;
+      if (season === 'winter') hc.setHSL(0.58, 0.06, woods ? 0.42 + j : 0.86 + j - Math.min(0.1, hgt / 4000));
+      else if (woods) hc.setHSL(season === 'autumn' ? 0.08 + j : 0.27 + j, season === 'autumn' ? 0.42 : 0.35, season === 'autumn' ? 0.26 : 0.2);
+      else hc.setHSL(season === 'autumn' ? 0.12 + j : season === 'spring' ? 0.24 + j : 0.19 + j, 0.38, season === 'autumn' ? 0.42 : 0.4);
+      col.setXYZ(i, hc.r, hc.g, hc.b);
+    }
+    col.needsUpdate = true;
+  }
+  paintHills('autumn');
 
   // ---------- water ----------
   const wpos = [], widx = [];
@@ -418,6 +487,21 @@ export function buildWorld(data, renderer) {
     const k = Math.floor(x / TC) + ',' + Math.floor(z / TC);
     (treeCells.get(k) || treeCells.set(k, []).get(k)).push([x, z, r]);
   }
+  {
+    const BAND = 1100; let sd = 99, placed = 0;
+    const r2 = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 900000 && placed < 32000; i++) {
+      const x = minX - BAND + r2() * (W + 2 * BAND), z = minZ - BAND + r2() * (H + 2 * BAND), d = outside(x, z);
+      if (d < 30 || d > BAND) continue;
+      const woods = fbm(x / 650, z / 650), p = woods > 0.6 ? 1 : woods > 0.56 ? 0.35 : 0.004; // woods, their edges, a few lone trees
+      if (r2() > p * (1 - (d / BAND) * 0.3)) continue;
+      // keep the river corridor open where the Elbe leaves the map
+      if (riverAt(Math.min(maxX - 3, Math.max(minX + 3, x)), Math.min(maxZ - 3, Math.max(minZ + 3, z))) > 0.1) continue;
+      const k = Math.floor(x / TC) + ',' + Math.floor(z / TC);
+      (treeCells.get(k) || treeCells.set(k, []).get(k)).push([x, z, [r2(), r2(), r2(), r2(), woods > 0.6 ? r2() * 0.3 : r2()]]);
+      placed++;
+    }
+  }
   const treeGroup = new THREE.Group();
   const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), tcol = new THREE.Color();
   for (const list of treeCells.values()) {
@@ -592,7 +676,7 @@ export function buildWorld(data, renderer) {
 
   function setSeason(s) {
     bakeGround(s);
-    apronMat.color.set(s === 'winter' ? '#e2e5e8' : s === 'autumn' ? '#cdc6b2' : '#cfcabe');
+    paintFields(s); paintHills(s);
     for (const im of treeGroup.children) {
       im.userData.list.forEach(([, , r], i) => im.setColorAt(i, treeColour(r, s)));
       im.instanceColor.needsUpdate = true;

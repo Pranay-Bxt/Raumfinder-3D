@@ -59,15 +59,16 @@ export class FlyMode {
   constructor(camera, scene, world) {
     this.camera = camera; this.world = world;
     this.craft = makeUltralight(); this.craft.visible = false; scene.add(this.craft);
-    this.pos = new THREE.Vector3(); this.yaw = 0; this.pitch = 0; this.roll = 0; this.speed = 30;
+    this.pos = new THREE.Vector3(); this.yaw = 0; this.pitch = 0; this.roll = 0; this.speed = 45;
     this.camYaw = 0; this.camPitch = 0.28; this.cockpit = false; this.agl = 0; this.note = '';
   }
   enter(x, z, yaw) {
     const e = this.world.ext;
     this.pos.set(clamp(x, e.minX + 50, e.maxX - 50), 0, clamp(z, e.minZ + 50, e.maxZ - 50));
-    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.speed = 30; this.camYaw = 0; this.camPitch = 0.28;
+    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.speed = 45; this.camYaw = 0; this.camPitch = 0.28;
     // start one block back so the place you were looking at comes into view
     this.pos.x += Math.sin(yaw) * 220; this.pos.z += Math.cos(yaw) * 220;
+    this.pos.x = clamp(this.pos.x, e.minX + 300, e.maxX - 300); this.pos.z = clamp(this.pos.z, e.minZ + 300, e.maxZ - 300);
     this.pos.y = this.world.heightAt(this.pos.x, this.pos.z) + 55;
     this.craft.visible = true; this.snap = true;
   }
@@ -78,20 +79,21 @@ export class FlyMode {
     const climb = down(keys, 'KeyW', 'ArrowUp') - down(keys, 'KeyS', 'ArrowDown');
     const thr = down(keys, 'KeyE', 'ShiftLeft', 'ShiftRight') - down(keys, 'KeyQ', 'ControlLeft');
     let steer = turn;
-    // stay over the map: bank back toward the centre when leaving it
+    // stay inside the wall: near the edge, bank back toward the middle of the map
     const e = this.world.ext, out = Math.max(e.minX - this.pos.x, this.pos.x - e.maxX, e.minZ - this.pos.z, this.pos.z - e.maxZ);
     this.note = '';
-    if (out > 150) {
-      const want = Math.atan2(this.pos.x, this.pos.z); // heading that points at the origin
+    if (out > -450) {
+      const want = Math.atan2(this.pos.x - (e.minX + e.maxX) / 2, this.pos.z - (e.minZ + e.maxZ) / 2); // heading that points at the map centre
       let diff = ((want - this.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      if (Math.abs(diff) > 0.15) { steer = clamp(diff * 2, -1, 1); this.note = 'edge of map - turning back'; }
+      if (Math.abs(diff) > 0.15) { steer = clamp(diff * 2, -1, 1); this.note = 'map edge - turning back'; }
     }
-    this.roll += (steer * 0.72 - this.roll) * ease(2.6, dt);
-    this.yaw += ((9.81 * Math.tan(this.roll)) / this.speed) * 1.7 * dt;
+    this.roll += (steer * 0.8 - this.roll) * ease(2.8, dt);
+    this.yaw += ((9.81 * Math.tan(this.roll)) / this.speed) * 2.6 * dt;
     this.pitch += (climb * 0.3 - this.pitch) * ease(2.2, dt);
-    this.speed = clamp(this.speed + thr * 9 * dt - Math.sin(this.pitch) * 3 * dt, 17, 48);
+    this.speed = clamp(this.speed + thr * 18 * dt - Math.sin(this.pitch) * 4 * dt, 25, 85);
     const cp = Math.cos(this.pitch), fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     this.pos.x += fx * cp * this.speed * dt; this.pos.z += fz * cp * this.speed * dt; this.pos.y += Math.sin(this.pitch) * this.speed * dt;
+    if (this.pos.x < e.minX + 20 || this.pos.x > e.maxX - 20 || this.pos.z < e.minZ + 20 || this.pos.z > e.maxZ - 20) { this.pos.x = clamp(this.pos.x, e.minX + 20, e.maxX - 20); this.pos.z = clamp(this.pos.z, e.minZ + 20, e.maxZ - 20); this.bumped = true; }
     // obstacle clearance: a bit above the roofs, never into them
     const ahead = this.speed * 1.6;
     const roof = Math.max(this.world.heightAt(this.pos.x, this.pos.z), this.world.heightAt(this.pos.x + fx * ahead, this.pos.z + fz * ahead));
@@ -186,11 +188,13 @@ export class BoatMode {
     this.t += dt;
     const thr = down(keys, 'KeyW', 'ArrowUp') - down(keys, 'KeyS', 'ArrowDown');
     const turn = down(keys, 'KeyA', 'ArrowLeft') - down(keys, 'KeyD', 'ArrowRight');
-    this.speed = clamp(this.speed + thr * 4.2 * dt - this.speed * 0.28 * dt, -5, 15);
-    this.heading += turn * dt * 0.5 * clamp(Math.abs(this.speed) / 5, 0.22, 1) * (this.speed < -0.2 ? -1 : 1);
+    this.speed = clamp(this.speed + thr * 7.5 * dt - this.speed * 0.28 * dt, -8, 26);
+    this.heading += turn * dt * 0.6 * clamp(Math.abs(this.speed) / 5, 0.22, 1) * (this.speed < -0.2 ? -1 : 1);
     const fx = -Math.sin(this.heading), fz = -Math.cos(this.heading);
     const nx = this.x + fx * this.speed * dt, nz = this.z + fz * this.speed * dt, s = Math.sign(this.speed) || 1;
-    if (this.world.isWater(nx, nz) && this.world.isWater(nx + fx * 20 * s, nz + fz * 20 * s)) { this.x = nx; this.z = nz; }
+    const ex = this.world.ext, inside = (x, z) => x > ex.minX + 40 && x < ex.maxX - 40 && z > ex.minZ + 40 && z < ex.maxZ - 40;
+    if (!inside(nx + fx * 20 * s, nz + fz * 20 * s)) { this.speed *= -0.25; this.bumped = true; }
+    else if (this.world.isWater(nx, nz) && this.world.isWater(nx + fx * 20 * s, nz + fz * 20 * s)) { this.x = nx; this.z = nz; }
     else this.speed *= -0.25;
     const b = this.boat;
     b.position.set(this.x, WATER_Y + Math.sin(this.t * 1.3) * 0.07, this.z);
@@ -258,9 +262,9 @@ export class BikeMode {
     this.t += dt;
     const pedal = down(keys, 'KeyW', 'ArrowUp'), brake = down(keys, 'KeyS', 'ArrowDown');
     const sIn = down(keys, 'KeyA', 'ArrowLeft') - down(keys, 'KeyD', 'ArrowRight');
-    const top = down(keys, 'ShiftLeft', 'ShiftRight') ? 11.5 : 7;
-    if (pedal) this.speed += 3.4 * dt * (1 - this.speed / top);
-    else if (brake) this.speed = Math.max(-1.6, this.speed - (this.speed > 0 ? 7 : 2.2) * dt);
+    const top = down(keys, 'ShiftLeft', 'ShiftRight') ? 16 : 10;
+    if (pedal) this.speed += 5 * dt * (1 - this.speed / top);
+    else if (brake) this.speed = Math.max(-2, this.speed - (this.speed > 0 ? 9 : 2.5) * dt);
     else this.speed -= this.speed * 0.3 * dt;
     this.steer += (sIn - this.steer) * ease(7, dt);
     const v = Math.abs(this.speed);
@@ -272,6 +276,7 @@ export class BikeMode {
     else if (this.ok(px, this.z + fz * 0.7)) { this.x = nx; this.speed *= 1 - Math.min(1, 2 * dt); }
     else if (this.ok(this.x + fx * 0.7, pz)) { this.z = nz; this.speed *= 1 - Math.min(1, 2 * dt); }
     else this.speed = 0;
+    const ee = this.world.ext; if (pedal && (px < ee.minX + 10 || px > ee.maxX - 10 || pz < ee.minZ + 10 || pz > ee.maxZ - 10)) this.bumped = true;
     this.y += (this.surfaceY(this.x, this.z) - this.y) * ease(10, dt);
     if (!this.dragging && v > 1) { this.lookYaw *= 1 - Math.min(1, 1.2 * dt); this.lookPitch *= 1 - Math.min(1, 1.2 * dt); }
     const lean = this.steer * 0.07 * Math.min(1, v / 5);
