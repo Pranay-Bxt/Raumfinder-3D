@@ -1,0 +1,1619 @@
+{
+ "source": "TU Dresden Campus Navigator",
+ "base": "https://navigator.tu-dresden.de/",
+ "note": "Building codes: OpenStreetMap cn_tud:token. Floor numbers: OSM indoor level tags. Floor plans and room data are not stored; the app embeds the official navigator live.",
+ "buildings": [
+  {
+   "id": "apb",
+   "code": "APB",
+   "name": "Andreas-Pfitzmann-Bau",
+   "address": "Nöthnitzer Straße 46",
+   "points": [
+    [
+     51.02549,
+     13.72297
+    ]
+   ],
+   "floors": [
+    {
+     "id": "03",
+     "label": "Etage 3"
+    },
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "asb",
+   "code": "ASB",
+   "name": "Andreas-Schubert-Bau",
+   "address": "Zellescher Weg 19",
+   "points": [
+    [
+     51.02963,
+     13.74055
+    ],
+    [
+     51.0301,
+     13.74013
+    ],
+    [
+     51.03005,
+     13.7405
+    ],
+    [
+     51.02976,
+     13.74075
+    ]
+   ]
+  },
+  {
+   "id": "a51",
+   "code": "A51",
+   "name": "Andreas-Schubert-Str. 51",
+   "address": "Andreas-Schubert-Straße 51",
+   "points": [
+    [
+     51.03263,
+     13.73515
+    ]
+   ]
+  },
+  {
+   "id": "abs",
+   "code": "ABS",
+   "name": "August-Bebel-Str. 20, 30 / Teplitzer Str. 15, 17",
+   "address": "August-Bebel-Straße 20",
+   "points": [
+    [
+     51.03052,
+     13.75354
+    ],
+    [
+     51.03128,
+     13.75188
+    ],
+    [
+     51.02956,
+     13.75379
+    ],
+    [
+     51.03149,
+     13.75164
+    ]
+   ]
+  },
+  {
+   "id": "b01",
+   "code": "B01",
+   "name": "Bamberger Str. 1",
+   "address": "",
+   "points": [
+    [
+     51.03549,
+     13.7103
+    ]
+   ]
+  },
+  {
+   "id": "bar",
+   "code": "BAR",
+   "name": "Barkhausen-Bau",
+   "address": "Helmholtzstraße 18",
+   "points": [
+    [
+     51.02684,
+     13.72336
+    ]
+   ]
+  },
+  {
+   "id": "b69",
+   "code": "B69",
+   "name": "Bergstr. 69",
+   "address": "Bergstraße 69",
+   "points": [
+    [
+     51.02582,
+     13.73217
+    ]
+   ]
+  },
+  {
+   "id": "ber",
+   "code": "BER",
+   "name": "Berndt-Bau",
+   "address": "Helmholtzstraße 7",
+   "points": [
+    [
+     51.02855,
+     13.72532
+    ],
+    [
+     51.0283,
+     13.72528
+    ]
+   ]
+  },
+  {
+   "id": "bey",
+   "code": "BEY",
+   "name": "Beyer-Bau",
+   "address": "George-Bähr-Straße 1",
+   "points": [
+    [
+     51.02971,
+     13.72934
+    ]
+   ]
+  },
+  {
+   "id": "bin",
+   "code": "BIN",
+   "name": "Binder-Bau",
+   "address": "",
+   "points": [
+    [
+     51.0275,
+     13.72697
+    ],
+    [
+     51.02812,
+     13.72649
+    ],
+    [
+     51.02732,
+     13.72749
+    ]
+   ]
+  },
+  {
+   "id": "bio",
+   "code": "BIO",
+   "name": "Biologie",
+   "address": "Zellescher Weg 20b",
+   "points": [
+    [
+     51.02768,
+     13.73869
+    ]
+   ]
+  },
+  {
+   "id": "b78",
+   "code": "B78",
+   "name": "Breitscheidstr. 78, OT Dobritz",
+   "address": "Breitscheidstraße 78",
+   "points": [
+    [
+     51.01007,
+     13.81207
+    ],
+    [
+     51.00886,
+     13.81412
+    ],
+    [
+     51.00958,
+     13.81352
+    ],
+    [
+     51.00997,
+     13.81279
+    ]
+   ]
+  },
+  {
+   "id": "b34",
+   "code": "B34",
+   "name": "Budapester Str. 34 b",
+   "address": "Budapester Straße 34b",
+   "points": [
+    [
+     51.04048,
+     13.71821
+    ]
+   ]
+  },
+  {
+   "id": "s14",
+   "code": "S14",
+   "name": "Bürogebäude Strehlener Str. 12, 14",
+   "address": "",
+   "points": [
+    [
+     51.03638,
+     13.74051
+    ]
+   ]
+  },
+  {
+   "id": "bss",
+   "code": "BSS",
+   "name": "Bürogebäude Strehlener Str. 22, 24",
+   "address": "Strehlener Straße 22/24",
+   "points": [
+    [
+     51.03472,
+     13.74549
+    ],
+    [
+     51.03451,
+     13.74516
+    ]
+   ]
+  },
+  {
+   "id": "bzw",
+   "code": "BZW",
+   "name": "Bürogebäude Zellescher Weg 17",
+   "address": "Zellescher Weg 17",
+   "points": [
+    [
+     51.02966,
+     13.73863
+    ]
+   ]
+  },
+  {
+   "id": "cbr",
+   "code": "CBR",
+   "name": "Campus-Brücke",
+   "address": "",
+   "points": [
+    [
+     51.02853,
+     13.7316
+    ],
+    [
+     51.02849,
+     13.73078
+    ],
+    [
+     51.02838,
+     13.73144
+    ]
+   ]
+  },
+  {
+   "id": "ccc",
+   "code": "CCC",
+   "name": "Carbon Concrete CUBE (Carbonhaus)",
+   "address": "Einsteinstraße 12",
+   "points": [
+    [
+     51.03001,
+     13.7321
+    ]
+   ]
+  },
+  {
+   "id": "che",
+   "code": "CHE",
+   "name": "Chemie/Hydrowissenschaften",
+   "address": "Bergstraße 66",
+   "points": [
+    [
+     51.02813,
+     13.73027
+    ],
+    [
+     51.02779,
+     13.73044
+    ]
+   ]
+  },
+  {
+   "id": "dru",
+   "code": "DRU",
+   "name": "Drude-Bau",
+   "address": "Zellescher Weg 40",
+   "points": [
+    [
+     51.02738,
+     13.74767
+    ]
+   ]
+  },
+  {
+   "id": "e09",
+   "code": "E09",
+   "name": "Einsteinstr. 9 Welcome Center, DD-concept",
+   "address": "Einsteinstraße 9",
+   "points": [
+    [
+     51.02975,
+     13.73338
+    ]
+   ]
+  },
+  {
+   "id": "e05",
+   "code": "E05",
+   "name": "Eisenstuckstr. 5",
+   "address": "Eisenstuckstraße 5",
+   "points": [
+    [
+     51.03745,
+     13.71836
+    ]
+   ]
+  },
+  {
+   "id": "mül",
+   "code": "MÜL",
+   "name": "Erich-Müller-Bau",
+   "address": "Bergstraße 66b",
+   "points": [
+    [
+     51.02812,
+     13.72797
+    ]
+   ]
+  },
+  {
+   "id": "f48",
+   "code": "F48",
+   "name": "Fabrikstr. 48 - 52",
+   "address": "Fabrikstraße 48-52",
+   "points": [
+    [
+     51.03766,
+     13.7074
+    ]
+   ]
+  },
+  {
+   "id": "fvz",
+   "code": "FVZ",
+   "name": "Fahrzeugtechnisches Versuchszentrum",
+   "address": "August-Bebel-Straße 32",
+   "points": [
+    [
+     51.0291,
+     13.75407
+    ],
+    [
+     51.02921,
+     13.75477
+    ],
+    [
+     51.02956,
+     13.75436
+    ],
+    [
+     51.02948,
+     13.75414
+    ]
+   ]
+  },
+  {
+   "id": "fal",
+   "code": "FAL",
+   "name": "Falkenbrunnen",
+   "address": "",
+   "points": [
+    [
+     51.03349,
+     13.71062
+    ]
+   ]
+  },
+  {
+   "id": "fel",
+   "code": "FEL",
+   "name": "Felsenkeller",
+   "address": "Am Eiswurmlager",
+   "points": [
+    [
+     51.02233,
+     13.70214
+    ]
+   ]
+  },
+  {
+   "id": "foe",
+   "code": "FOE",
+   "name": "Fritz-Foerster-Bau",
+   "address": "Mommsenstraße 6",
+   "points": [
+    [
+     51.02754,
+     13.72867
+    ]
+   ]
+  },
+  {
+   "id": "sch",
+   "code": "SCH",
+   "name": "Georg-Schumann-Bau",
+   "address": "Münchner Platz",
+   "points": [
+    [
+     51.0287,
+     13.72344
+    ],
+    [
+     51.02951,
+     13.72352
+    ]
+   ]
+  },
+  {
+   "id": "s7a",
+   "code": "S7A",
+   "name": "Georg-Schumann-Str. 7 a",
+   "address": "Georg-Schumann-Straße 7a",
+   "points": [
+    [
+     51.02774,
+     13.72311
+    ]
+   ]
+  },
+  {
+   "id": "pot",
+   "code": "POT",
+   "name": "Gerhart-Potthoff-Bau",
+   "address": "Hettnerstraße 3",
+   "points": [
+    [
+     51.03058,
+     13.72854
+    ]
+   ]
+  },
+  {
+   "id": "gör",
+   "code": "GÖR",
+   "name": "Görges-Bau",
+   "address": "Helmholtzstraße 9",
+   "points": [
+    [
+     51.02786,
+     13.72566
+    ],
+    [
+     51.02796,
+     13.72614
+    ]
+   ]
+  },
+  {
+   "id": "m07",
+   "code": "M07",
+   "name": "Graduiertenakademie Mommsenstr. 7",
+   "address": "Mommsenstraße 7",
+   "points": [
+    [
+     51.02695,
+     13.72852
+    ]
+   ]
+  },
+  {
+   "id": "glb",
+   "code": "GLB",
+   "name": "Günther-Landgraf-Bau",
+   "address": "Mommsenstraße 15",
+   "points": [
+    [
+     51.02673,
+     13.72568
+    ]
+   ],
+   "floors": [
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "hal",
+   "code": "HAL",
+   "name": "Hallwachsstr. 3",
+   "address": "Hallwachsstraße 3",
+   "points": [
+    [
+     51.02607,
+     13.72674
+    ]
+   ]
+  },
+  {
+   "id": "hei",
+   "code": "HEI",
+   "name": "Heidebroek-Bau",
+   "address": "Nöthnitzer Straße 62",
+   "points": [
+    [
+     51.02507,
+     13.72502
+    ]
+   ]
+  },
+  {
+   "id": "kro",
+   "code": "KRO",
+   "name": "Hermann-Krone-Bau",
+   "address": "Nöthnitzer Straße 61",
+   "points": [
+    [
+     51.02602,
+     13.72565
+    ],
+    [
+     51.02573,
+     13.72611
+    ]
+   ]
+  },
+  {
+   "id": "h48",
+   "code": "H48",
+   "name": "Hochschulstr. 48",
+   "address": "",
+   "points": [
+    [
+     51.0319,
+     13.73085
+    ]
+   ]
+  },
+  {
+   "id": "h53",
+   "code": "H53",
+   "name": "Hohe Str. 53",
+   "address": "Hohe Straße 53",
+   "points": [
+    [
+     51.03478,
+     13.71735
+    ],
+    [
+     51.03483,
+     13.71761
+    ]
+   ]
+  },
+  {
+   "id": "h06",
+   "code": "H06",
+   "name": "Hohe Str. 6",
+   "address": "",
+   "points": [
+    [
+     51.04153,
+     13.72443
+    ]
+   ]
+  },
+  {
+   "id": "hsz",
+   "code": "HSZ",
+   "name": "Hörsaalzentrum",
+   "address": "Bergstraße 64",
+   "points": [
+    [
+     51.02879,
+     13.7299
+    ]
+   ],
+   "floors": [
+    {
+     "id": "04",
+     "label": "Etage 4"
+    },
+    {
+     "id": "03",
+     "label": "Etage 3"
+    },
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    },
+    {
+     "id": "-1",
+     "label": "Etage -1"
+    },
+    {
+     "id": "-2",
+     "label": "Etage -2"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "hül",
+   "code": "HÜL",
+   "name": "Hülße-Bau",
+   "address": "Helmholtzstraße 10",
+   "points": [
+    [
+     51.02923,
+     13.72375
+    ]
+   ]
+  },
+  {
+   "id": "jan",
+   "code": "JAN",
+   "name": "Jante-Bau",
+   "address": "George-Bähr-Straße 1b",
+   "points": [
+    [
+     51.02954,
+     13.72766
+    ],
+    [
+     51.02926,
+     13.72743
+    ]
+   ]
+  },
+  {
+   "id": "kön",
+   "code": "KÖN",
+   "name": "König-Bau",
+   "address": "Bergstraße 66c",
+   "points": [
+    [
+     51.02818,
+     13.72895
+    ]
+   ]
+  },
+  {
+   "id": "kut",
+   "code": "KUT",
+   "name": "Kutzbach-Bau",
+   "address": "Helmholtzstraße 7a",
+   "points": [
+    [
+     51.02851,
+     13.72606
+    ]
+   ]
+  },
+  {
+   "id": "hub",
+   "code": "HUB",
+   "name": "LaunchHub42",
+   "address": "Georg-Schumann-Straße 11",
+   "points": [
+    [
+     51.02637,
+     13.72246
+    ]
+   ]
+  },
+  {
+   "id": "lzb",
+   "code": "LZB",
+   "name": "Lehmann-Zentrum",
+   "address": "",
+   "points": [
+    [
+     51.0251,
+     13.71981
+    ]
+   ]
+  },
+  {
+   "id": "l15",
+   "code": "L15",
+   "name": "Lockwitzer Str. 15",
+   "address": "Lockwitzer Straße 15",
+   "points": [
+    [
+     51.02548,
+     13.76192
+    ]
+   ]
+  },
+  {
+   "id": "e03",
+   "code": "E03",
+   "name": "Ludwig-Ermold-Str. 3",
+   "address": "",
+   "points": [
+    [
+     51.02906,
+     13.74424
+    ]
+   ]
+  },
+  {
+   "id": "mbz",
+   "code": "MBZ",
+   "name": "Max-Bergmann-Zentrum",
+   "address": "Budapester Straße 27",
+   "points": [
+    [
+     51.04231,
+     13.72281
+    ]
+   ]
+  },
+  {
+   "id": "m13",
+   "code": "M13",
+   "name": "Mensa Mommsenstr. 13",
+   "address": "Mommsenstraße 13",
+   "points": [
+    [
+     51.0268,
+     13.7267
+    ],
+    [
+     51.02654,
+     13.72595
+    ]
+   ],
+   "floors": [
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "mer",
+   "code": "MER",
+   "name": "Merkel-Bau",
+   "address": "Helmholtzstraße 14",
+   "points": [
+    [
+     51.0279,
+     13.7246
+    ],
+    [
+     51.02819,
+     13.72427
+    ],
+    [
+     51.02786,
+     13.72426
+    ]
+   ]
+  },
+  {
+   "id": "mie",
+   "code": "MIE",
+   "name": "Mierdel-Bau",
+   "address": "Nöthnitzer Straße 64",
+   "points": [
+    [
+     51.02482,
+     13.72645
+    ]
+   ]
+  },
+  {
+   "id": "mod",
+   "code": "MOD",
+   "name": "Modulgebäude Stadtgutstr. 59",
+   "address": "Stadtgutstraße 59",
+   "points": [
+    [
+     51.02582,
+     13.73576
+    ]
+   ]
+  },
+  {
+   "id": "moh",
+   "code": "MOH",
+   "name": "Mohr-Bau",
+   "address": "Zellescher Weg 22a",
+   "points": [
+    [
+     51.02823,
+     13.73995
+    ]
+   ]
+  },
+  {
+   "id": "mol",
+   "code": "MOL",
+   "name": "Mollier-Bau",
+   "address": "George-Bähr-Straße 3",
+   "points": [
+    [
+     51.02943,
+     13.7267
+    ]
+   ]
+  },
+  {
+   "id": "m05",
+   "code": "M05",
+   "name": "Mommsenstr. 5",
+   "address": "Mommsenstraße 5",
+   "points": [
+    [
+     51.02703,
+     13.73013
+    ]
+   ]
+  },
+  {
+   "id": "ms1",
+   "code": "MS1",
+   "name": "Münchner Str. 1",
+   "address": "Münchner Straße 1",
+   "points": [
+    [
+     51.03214,
+     13.72927
+    ]
+   ]
+  },
+  {
+   "id": "neu",
+   "code": "NEU",
+   "name": "Neuffer-Bau",
+   "address": "George-Bähr-Straße 1a",
+   "points": [
+    [
+     51.02927,
+     13.72957
+    ]
+   ]
+  },
+  {
+   "id": "nic",
+   "code": "NIC",
+   "name": "Nickerner Weg 8",
+   "address": "Nickerner Weg 8",
+   "points": [
+    [
+     50.99342,
+     13.79472
+    ]
+   ]
+  },
+  {
+   "id": "n63",
+   "code": "N63",
+   "name": "Nöthnitzer Str. 63 (Haus A)",
+   "address": "Nöthnitzer Straße 63",
+   "points": [
+    [
+     51.02535,
+     13.72779
+    ]
+   ]
+  },
+  {
+   "id": "n67",
+   "code": "N67",
+   "name": "Nöthnitzer Str. 67 (Haus B)",
+   "address": "Nöthnitzer Straße 67",
+   "points": [
+    [
+     51.02524,
+     13.72875
+    ]
+   ]
+  },
+  {
+   "id": "n69",
+   "code": "N69",
+   "name": "Nöthnitzer Str. 69 (Haus C)",
+   "address": "Nöthnitzer Straße 69",
+   "points": [
+    [
+     51.02513,
+     13.72971
+    ]
+   ]
+  },
+  {
+   "id": "n73",
+   "code": "N73",
+   "name": "Nöthnitzer Str. 73",
+   "address": "Nöthnitzer Straße 73",
+   "points": [
+    [
+     51.025,
+     13.73064
+    ],
+    [
+     51.02506,
+     13.73091
+    ],
+    [
+     51.02521,
+     13.73076
+    ],
+    [
+     51.0252,
+     13.73092
+    ],
+    [
+     51.02521,
+     13.73085
+    ],
+    [
+     51.02507,
+     13.73101
+    ]
+   ]
+  },
+  {
+   "id": "nür",
+   "code": "NÜR",
+   "name": "Nürnberger Ei, Uni mit Kind",
+   "address": "Nürnberger Straße 31a",
+   "points": [
+    [
+     51.03447,
+     13.72203
+    ]
+   ]
+  },
+  {
+   "id": "rec",
+   "code": "REC",
+   "name": "Recknagel-Bau",
+   "address": "Haeckelstraße 3",
+   "points": [
+    [
+     51.02798,
+     13.73394
+    ]
+   ],
+   "floors": [
+    {
+     "id": "03",
+     "label": "Etage 3"
+    },
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "rek",
+   "code": "REK",
+   "name": "Rektorat",
+   "address": "Mommsenstraße 11",
+   "points": [
+    [
+     51.02675,
+     13.7278
+    ]
+   ]
+  },
+  {
+   "id": "sac",
+   "code": "SAC",
+   "name": "Sachsenberg-Bau",
+   "address": "Helmholtzstraße 7a",
+   "points": [
+    [
+     51.02873,
+     13.72577
+    ]
+   ]
+  },
+  {
+   "id": "sws",
+   "code": "SWS",
+   "name": "Schweizer Str. 3",
+   "address": "",
+   "points": [
+    [
+     51.04157,
+     13.72231
+    ]
+   ]
+  },
+  {
+   "id": "se1",
+   "code": "SE1",
+   "name": "Seminargebäude 1",
+   "address": "Zellescher Weg 22",
+   "points": [
+    [
+     51.02863,
+     13.73971
+    ]
+   ]
+  },
+  {
+   "id": "se2",
+   "code": "SE2",
+   "name": "Seminargebäude 2",
+   "address": "Zellescher Weg 20",
+   "points": [
+    [
+     51.02868,
+     13.73894
+    ]
+   ]
+  },
+  {
+   "id": "sem",
+   "code": "SEM",
+   "name": "Semperstr. 14",
+   "address": "Semperstraße 14",
+   "points": [
+    [
+     51.03298,
+     13.7449
+    ]
+   ]
+  },
+  {
+   "id": "n60",
+   "code": "N60",
+   "name": "Sporthallen Nöthnitzer Str. 60 a",
+   "address": "Nöthnitzer Straße 60a",
+   "points": [
+    [
+     51.0246,
+     13.72382
+    ],
+    [
+     51.02462,
+     13.72501
+    ]
+   ]
+  },
+  {
+   "id": "sta",
+   "code": "STA",
+   "name": "Stadtgutstr. 10, Räcknitzhöhe 23, Alträcknitz 17",
+   "address": "Stadtgutstraße 23",
+   "points": [
+    [
+     51.02501,
+     13.73571
+    ],
+    [
+     51.02536,
+     13.73457
+    ],
+    [
+     51.0247,
+     13.73556
+    ],
+    [
+     51.02553,
+     13.73511
+    ],
+    [
+     51.0253,
+     13.73525
+    ],
+    [
+     51.02504,
+     13.73479
+    ]
+   ]
+  },
+  {
+   "id": "b64",
+   "code": "B64",
+   "name": "StartupCube 1-2 Bergstr. 64",
+   "address": "",
+   "points": [
+    [
+     51.02915,
+     13.72862
+    ],
+    [
+     51.02916,
+     13.72873
+    ]
+   ]
+  },
+  {
+   "id": "z20",
+   "code": "Z20",
+   "name": "StartupCube 3-6/Schaufler Lab@TU Dresden Zellescher Weg 20 b",
+   "address": "Zellescher Weg 20",
+   "points": [
+    [
+     51.02831,
+     13.73877
+    ],
+    [
+     51.02822,
+     13.73861
+    ],
+    [
+     51.02824,
+     13.73884
+    ],
+    [
+     51.02828,
+     13.73872
+    ],
+    [
+     51.0283,
+     13.73895
+    ]
+   ]
+  },
+  {
+   "id": "tlz",
+   "code": "TLZ",
+   "name": "Technische Leitzentrale",
+   "address": "Helmholtzstraße 9b",
+   "points": [
+    [
+     51.02816,
+     13.72704
+    ]
+   ]
+  },
+  {
+   "id": "tzs",
+   "code": "TZS",
+   "name": "TechnologieZentrumDresden",
+   "address": "",
+   "points": [
+    [
+     51.01302,
+     13.75505
+    ]
+   ]
+  },
+  {
+   "id": "tex",
+   "code": "TEX",
+   "name": "Textilmaschinenhalle",
+   "address": "George-Bähr-Straße 1c",
+   "points": [
+    [
+     51.02923,
+     13.72797
+    ]
+   ]
+  },
+  {
+   "id": "til",
+   "code": "TIL",
+   "name": "Tillich-Bau",
+   "address": "",
+   "points": [
+    [
+     51.02947,
+     13.72429
+    ],
+    [
+     51.02953,
+     13.72389
+    ]
+   ]
+  },
+  {
+   "id": "toe",
+   "code": "TOE",
+   "name": "Toepler-Bau",
+   "address": "",
+   "points": [
+    [
+     51.02744,
+     13.7259
+    ]
+   ],
+   "floors": [
+    {
+     "id": "03",
+     "label": "Etage 3"
+    },
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    },
+    {
+     "id": "-1",
+     "label": "Etage -1"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "tre",
+   "code": "TRE",
+   "name": "Trefftz-Bau",
+   "address": "Zellescher Weg 16",
+   "points": [
+    [
+     51.02837,
+     13.73541
+    ]
+   ],
+   "floors": [
+    {
+     "id": "03",
+     "label": "Etage 3"
+    },
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "brg",
+   "code": "BRG",
+   "name": "Übergabestation Bergstraße 57",
+   "address": "Bergstraße 57",
+   "points": [
+    [
+     51.02756,
+     13.73169
+    ]
+   ]
+  },
+  {
+   "id": "noe",
+   "code": "NOE",
+   "name": "Übergabestation Nöthnitzer Str. 62 a",
+   "address": "Nöthnitzer Straße 62a",
+   "points": [
+    [
+     51.02462,
+     13.72542
+    ]
+   ]
+  },
+  {
+   "id": "m09",
+   "code": "M09",
+   "name": "UNISHOP Mommsenstr. 9",
+   "address": "Mommsenstraße 9",
+   "points": [
+    [
+     51.02706,
+     13.72817
+    ]
+   ]
+  },
+  {
+   "id": "vg1",
+   "code": "VG1",
+   "name": "Verwaltungsgebäude 1",
+   "address": "George-Bähr-Straße 1d",
+   "points": [
+    [
+     51.02893,
+     13.72794
+    ],
+    [
+     51.02889,
+     13.7275
+    ]
+   ]
+  },
+  {
+   "id": "vg3",
+   "code": "VG3",
+   "name": "Verwaltungsgebäude 3",
+   "address": "Nöthnitzer Straße 43",
+   "points": [
+    [
+     51.0267,
+     13.72016
+    ]
+   ]
+  },
+  {
+   "id": "vmb",
+   "code": "VMB",
+   "name": "von-Mises-Bau",
+   "address": "Georg-Schumann-Straße 7",
+   "points": [
+    [
+     51.02808,
+     13.72279
+    ]
+   ]
+  },
+  {
+   "id": "vvt",
+   "code": "VVT",
+   "name": "VVT-Halle",
+   "address": "Helmholtzstraße 16",
+   "points": [
+    [
+     51.02744,
+     13.72375
+    ]
+   ]
+  },
+  {
+   "id": "fre",
+   "code": "FRE",
+   "name": "Walter-Frenzel-Bau",
+   "address": "George-Bähr-Straße 3c",
+   "points": [
+    [
+     51.02908,
+     13.72605
+    ]
+   ]
+  },
+  {
+   "id": "hem",
+   "code": "HEM",
+   "name": "Walther-Hempel-Bau",
+   "address": "Mommsenstraße 4",
+   "points": [
+    [
+     51.02744,
+     13.73021
+    ]
+   ]
+  },
+  {
+   "id": "pau",
+   "code": "PAU",
+   "name": "Walther-Pauer-Bau",
+   "address": "George-Bähr-Straße 3b",
+   "points": [
+    [
+     51.02867,
+     13.7269
+    ]
+   ]
+  },
+  {
+   "id": "web",
+   "code": "WEB",
+   "name": "Weberplatz",
+   "address": "Weberplatz 5",
+   "points": [
+    [
+     51.03061,
+     13.75014
+    ]
+   ]
+  },
+  {
+   "id": "w07",
+   "code": "W07",
+   "name": "Weißbachstr. 7",
+   "address": "Weißbachstraße 7",
+   "points": [
+    [
+     51.02677,
+     13.72947
+    ]
+   ]
+  },
+  {
+   "id": "whb",
+   "code": "WHB",
+   "name": "Werner-Hartmann-Bau",
+   "address": "Nöthnitzer Straße 66",
+   "points": [
+    [
+     51.02479,
+     13.72769
+    ]
+   ]
+  },
+  {
+   "id": "w48",
+   "code": "W48",
+   "name": "Wiener Str. 48",
+   "address": "Wiener Straße 48",
+   "points": [
+    [
+     51.0352,
+     13.74984
+    ]
+   ]
+  },
+  {
+   "id": "wil",
+   "code": "WIL",
+   "name": "Willers-Bau",
+   "address": "Zellescher Weg 12;14",
+   "points": [
+    [
+     51.02897,
+     13.73373
+    ]
+   ],
+   "floors": [
+    {
+     "id": "03",
+     "label": "Etage 3"
+    },
+    {
+     "id": "02",
+     "label": "Etage 2"
+    },
+    {
+     "id": "01",
+     "label": "Etage 1"
+    },
+    {
+     "id": "00",
+     "label": "Etage 0"
+    },
+    {
+     "id": "-1",
+     "label": "Etage -1"
+    }
+   ],
+   "defaultFloor": "00"
+  },
+  {
+   "id": "wür",
+   "code": "WÜR",
+   "name": "Würzburger Str. 46",
+   "address": "Würzburger Straße 46",
+   "points": [
+    [
+     51.03079,
+     13.71404
+    ]
+   ]
+  },
+  {
+   "id": "z21",
+   "code": "Z21",
+   "name": "Zellescher Weg 21 - 25 a",
+   "address": "",
+   "points": [
+    [
+     51.02919,
+     13.74329
+    ],
+    [
+     51.02908,
+     13.74239
+    ]
+   ]
+  },
+  {
+   "id": "z41",
+   "code": "Z41",
+   "name": "Zellescher Weg 41 a - c",
+   "address": "",
+   "points": [
+    [
+     51.02869,
+     13.75098
+    ],
+    [
+     51.02846,
+     13.75241
+    ],
+    [
+     51.0287,
+     13.75185
+    ],
+    [
+     51.02885,
+     13.75128
+    ]
+   ]
+  },
+  {
+   "id": "zin",
+   "code": "ZIN",
+   "name": "Zentrum für Integrierte Naturstofftechnik ZINT",
+   "address": "Bergstraße 120",
+   "points": [
+    [
+     51.02028,
+     13.72776
+    ]
+   ]
+  },
+  {
+   "id": "zeu",
+   "code": "ZEU",
+   "name": "Zeuner-Bau",
+   "address": "George-Bähr-Straße 3",
+   "points": [
+    [
+     51.02944,
+     13.72561
+    ]
+   ]
+  },
+  {
+   "id": "zs1",
+   "code": "ZS1",
+   "name": "Zeunerstr. 1 a",
+   "address": "Zeunerstraße 1a",
+   "points": [
+    [
+     51.02671,
+     13.736
+    ],
+    [
+     51.02689,
+     13.7359
+    ]
+   ]
+  },
+  {
+   "id": "z48",
+   "code": "Z48",
+   "name": "Zwickauer Str. 48 LEIV",
+   "address": "Zwickauer Straße 48",
+   "points": [
+    [
+     51.04058,
+     13.71468
+    ]
+   ]
+  }
+ ]
+}

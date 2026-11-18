@@ -1,0 +1,32 @@
+{
+ "name": "Dresden",
+ "origin": {
+  "lat": 51.052,
+  "lon": 13.745
+ },
+ "bbox": {
+  "s": 50.988,
+  "w": 13.6955,
+  "n": 51.076,
+  "e": 13.82
+ },
+ "ext": {
+  "minX": -3469,
+  "maxX": 5256,
+  "minZ": -2671,
+  "maxZ": 7117
+ },
+ "counts": {
+  "buildings": 44931,
+  "parts": 3719,
+  "roads": 47967,
+  "trees": 75763
+ },
+ "aerial": true,
+ "photoRoofs": 42992,
+ "cadastreAdded": 10591,
+ "lod2Count": 4581,
+ "heightTaggedPct": 37,
+ "built": "2026-11-16",
+ "attribution": "Map data (c) OpenStreetMap contributors, ODbL. Aerial imagery and building register: GeoSN, dl-de/by-2-0"
+}

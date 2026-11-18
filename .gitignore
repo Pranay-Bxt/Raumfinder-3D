@@ -1,0 +1,14 @@
+# dependencies (reinstalled with: npm install)
+node_modules/
+
+# raw downloads and caches used to build data/ (735 MB, some files over GitHub's 100 MB limit)
+raw/
+
+# local editor / tool settings
+.claude/
+.vscode/
+.idea/
+
+# OS clutter
+.DS_Store
+Thumbs.db

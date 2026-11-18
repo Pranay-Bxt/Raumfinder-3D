@@ -1,0 +1,21 @@
+{
+  "name": "dresden-3d",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "data": "node tools/build-data.mjs",
+    "tram": "node tools/build-tram.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "earcut": "^3.2.4",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.5",
+    "three": "^0.187.0"
+  },
+  "type": "module"
+}
