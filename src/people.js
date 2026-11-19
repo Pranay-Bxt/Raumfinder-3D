@@ -1,15 +1,17 @@
 // Pedestrians: people walking along real footways and sidewalks near the camera, passengers waiting
 // at tram stops (they board when the tram's doors open) and passengers stepping off.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
+// everyone in Dresden yellow (DVB / Dynamo), a few shades so crowds don't look cloned
 const PALETTE = {
-  spring: ['#e8c3d0', '#a9c8e8', '#f2e6a0', '#c9dfb5', '#e9a98d', '#7d9ec4', '#d7d7d7', '#f3f3f0', '#8aa5c9', '#d6b48c'],
-  summer: ['#ffffff', '#ff6b5b', '#4fb6e8', '#ffd24a', '#7dd3a0', '#f78fb3', '#ffa94d', '#e8e8e8', '#5b8def', '#b9e0ff'],
-  autumn: ['#8a4b2d', '#b86b32', '#556b3a', '#7a2e2e', '#3f4f66', '#c9a35a', '#5a4636', '#8d8f91', '#a05a3c', '#34495e'],
-  winter: ['#22252b', '#2e3a4d', '#4a2f2f', '#1d3b2f', '#555a63', '#6b2f3a', '#3b3b40', '#20324a', '#7a7f87', '#2b2b2b'],
+  spring: ['#FFD400', '#FDE100', '#ffe14d', '#f7d23a', '#ffe680', '#f2c500'],
+  summer: ['#FFD400', '#FDE100', '#ffea5c', '#fff07a', '#ffd84d', '#f5cf1f'],
+  autumn: ['#FFD400', '#f2c200', '#e6b800', '#FDE100', '#d9a900', '#ffcd1a'],
+  winter: ['#f2c200', '#e0ad00', '#FFD400', '#d19b00', '#e8b800', '#c79400'],
 };
 const SKIN = ['#f1c9a5', '#e0ac82', '#c68a63', '#8d5a3b', '#f4d6bd'];
-const PANTS = ['#2b3544', '#1f2430', '#4a4f58', '#6b5a45', '#30343b', '#7b8794'];
+const PANTS = ['#111111', '#1a1a1a', '#222428', '#151515', '#2a2a2a'];
 
 const hash = (n) => { n = (n ^ 61) ^ (n >>> 16); n = n + (n << 3); n ^= n >>> 4; n = Math.imul(n, 0x27d4eb2d); n ^= n >>> 15; return (n >>> 0) / 4294967296; };
 
@@ -65,9 +67,20 @@ export class People {
     const torso = new THREE.CapsuleGeometry(0.19, 0.46, 3, 8).translate(0, 1.14, 0), head = new THREE.SphereGeometry(0.115, 10, 8).translate(0, 1.66, 0);
     const leg = new THREE.BoxGeometry(0.115, 0.74, 0.14).translate(0, -0.37, 0), arm = new THREE.BoxGeometry(0.085, 0.58, 0.1).translate(0, -0.29, 0);
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 });
+    // fan scarf: a ring round the neck + one hanging end, black and yellow stripes
+    const scv = document.createElement('canvas'); scv.width = 16; scv.height = 2;
+    const sx = scv.getContext('2d'); sx.fillStyle = '#FFD400'; sx.fillRect(0, 0, 8, 2); sx.fillStyle = '#111'; sx.fillRect(8, 0, 8, 2);
+    const stripes = new THREE.CanvasTexture(scv); stripes.wrapS = stripes.wrapT = THREE.RepeatWrapping; stripes.magFilter = THREE.NearestFilter; stripes.colorSpace = THREE.SRGBColorSpace;
+    const ring = new THREE.TorusGeometry(0.135, 0.05, 6, 16).rotateX(Math.PI / 2).translate(0, 1.5, 0);
+    { const uv = ring.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setX(k, uv.getX(k) * 7); } // 7 stripe pairs round the neck
+    const tail = new THREE.BoxGeometry(0.085, 0.36, 0.03).translate(-0.07, 1.3, 0.175);
+    { const uv = tail.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setX(k, uv.getY(k) * 3); } // stripes across the hanging end
+    const scarf = mergeGeometries([ring.toNonIndexed(), tail.toNonIndexed()]);
+    const scarfMat = new THREE.MeshStandardMaterial({ map: stripes, roughness: 0.95 });
     const mk = (g) => { const m = new THREE.InstancedMesh(g, mat, N); m.castShadow = true; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); return m; };
     this.mT = mk(torso); this.mH = mk(head); this.mL = mk(leg); this.mR = mk(leg.clone()); this.mAL = mk(arm); this.mAR = mk(arm.clone());
-    this.meshes = [this.mT, this.mH, this.mL, this.mR, this.mAL, this.mAR];
+    this.mS = new THREE.InstancedMesh(scarf, scarfMat, N); this.mS.castShadow = false; this.mS.frustumCulled = false; this.mS.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(this.mS);
+    this.meshes = [this.mT, this.mH, this.mL, this.mR, this.mAL, this.mAR, this.mS];
     for (let i = 0; i < N; i++) { this.sc[i] = hash(i * 7 + 3) < 0.09 ? 0.72 + hash(i) * 0.1 : 0.92 + hash(i * 3) * 0.14; this.sp[i] = 1.0 + hash(i * 5) * 0.6; this.ph[i] = hash(i * 11) * 6.28; }
     this.recolor();
     this.zero();
@@ -150,7 +163,7 @@ export class People {
     dt = Math.min(dt, 0.05);
     const R2 = this.R * 1.2;
     let respawn = 0;
-    const A = this.mT.instanceMatrix.array, H = this.mH.instanceMatrix.array, L = this.mL.instanceMatrix.array, Rr = this.mR.instanceMatrix.array, AL = this.mAL.instanceMatrix.array, AR = this.mAR.instanceMatrix.array;
+    const S = this.mS.instanceMatrix.array, A = this.mT.instanceMatrix.array, H = this.mH.instanceMatrix.array, L = this.mL.instanceMatrix.array, Rr = this.mR.instanceMatrix.array, AL = this.mAL.instanceMatrix.array, AR = this.mAR.instanceMatrix.array;
     for (let i = 0; i < this.N; i++) {
       const k = this.kind[i];
       if (k === FREE) continue;
@@ -181,7 +194,7 @@ export class People {
       const sc = this.sc[i] * (k === ALIGHT && this.tm[i] > 5.5 ? Math.max(0.001, 7 - this.tm[i]) / 1.5 : 1);
       const ph = (this.ph[i] += dt * this.sp[i] * 5.2 * walking), sw = Math.sin(ph) * 0.62 * walking, bob = Math.abs(Math.sin(ph)) * 0.025 * walking;
       const x = this.x[i], z = this.z[i], y = this.y[i] + bob, yw = this.yaw[i];
-      setM(A, i, x, y, z, yw, 0, sc, 0, 0, 0); setM(H, i, x, y, z, yw, 0, sc, 0, 0, 0);
+      setM(A, i, x, y, z, yw, 0, sc, 0, 0, 0); setM(H, i, x, y, z, yw, 0, sc, 0, 0, 0); setM(S, i, x, y, z, yw, 0, sc, 0, 0, 0);
       setM(L, i, x, y, z, yw, sw, sc, -0.085, 0.78, 0); setM(Rr, i, x, y, z, yw, -sw, sc, 0.085, 0.78, 0);
       setM(AL, i, x, y, z, yw, -sw * 0.9, sc, -0.24, 1.52, 0); setM(AR, i, x, y, z, yw, sw * 0.9, sc, 0.24, 1.52, 0);
       this.dirty[i] = 0;

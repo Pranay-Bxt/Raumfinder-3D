@@ -9,7 +9,7 @@ import { project, unproject } from './proj.js';
 import { buildWorld } from './world.js';
 import { Environment, sunPosition, nowBerlin, berlinToUtc } from './env.js';
 import { Labels } from './labels.js';
-import { FlyMode, BoatMode, BikeMode } from './modes.js';
+import { FlyMode, BoatMode, BikeMode, CarMode } from './modes.js';
 import { buildSports, Penalty } from './football.js';
 import { TramRoute, TramNetwork, TramGame, setTramNight } from './tram.js';
 import { People } from './people.js';
@@ -91,6 +91,7 @@ controls.minDistance = 30; controls.maxDistance = 12000; controls.maxPolarAngle 
 const fly = new FlyMode(camera, scene, world);
 const boat = new BoatMode(camera, scene, world, project(51.0562, 13.7425));
 const bike = new BikeMode(camera, scene, world, project(51.0537, 13.7372));
+const car = new CarMode(camera, scene, world, project(51.0537, 13.7372));
 const penalty = new Penalty(scene, camera, canvas);
 let mode = 'explore';
 const keys = new Set();
@@ -98,10 +99,10 @@ const photo = new PhotoCam({
   canvas,
   render: () => { if (effects) composer.render(); else renderer.render(scene, camera); },
   caption: () => {
-    const p = mode === 'bike' ? { x: bike.x, z: bike.z } : camera.position;
+    const p = mode === 'bike' ? { x: bike.x, z: bike.z } : mode === 'car' ? { x: car.x, z: car.z } : camera.position;
     let near = null, nd = Infinity;
     for (const d of data.labels) if (d.k === 'district') { const dd = Math.hypot(d.x - p.x, d.z - p.z); if (dd < nd) { nd = dd; near = d; } }
-    const where = mode === 'bike' && bike.street ? bike.street : mode === 'tram' && tramGame.active ? 'Linie 11 — ' + tramGame.trip[Math.min(tramGame.stopIdx, tramGame.trip.length - 1)].name : near ? near.n : 'Dresden';
+    const where = mode === 'bike' && bike.street ? bike.street : mode === 'car' && car.street ? car.street : mode === 'tram' && tramGame.active ? 'Linie 11 — ' + tramGame.trip[Math.min(tramGame.stopIdx, tramGame.trip.length - 1)].name : near ? near.n : 'Dresden';
     const [lat, lon] = unproject(p.x, p.z);
     return { title: where, sub: `${near ? near.n + ' · ' : ''}${T.d}.${T.m}.${T.y} ${pad(T.min / 60 | 0)}:${pad(T.min % 60)} · ${season} · ${lat.toFixed(4)}°N ${lon.toFixed(4)}°E · ${photo.on ? photo.mm() + ' mm' : 'wide'}` };
   },
@@ -117,6 +118,7 @@ const HINTS = {
   boat: 'Steamer: <kbd>W</kbd> <kbd>S</kbd> throttle · <kbd>A</kbd> <kbd>D</kbd> rudder · drag to look around · <kbd>R</kbd> back to the pier · <kbd>Esc</kbd> exit',
   penalty: '',
   tram: '',
+  car: 'Car: <kbd>W</kbd> gas · <kbd>S</kbd> brake / reverse · <kbd>A</kbd> <kbd>D</kbd> steer · <kbd>Shift</kbd> boost · <kbd>C</kbd> driver view · <kbd>P</kbd> photo · drag to look · <kbd>Esc</kbd> exit',
   bike: 'Bicycle: <kbd>W</kbd> pedal · <kbd>S</kbd> brake · <kbd>A</kbd> <kbd>D</kbd> steer · <kbd>Shift</kbd> sprint · <kbd>F</kbd> camera viewfinder · <kbd>P</kbd> quick photo · drag to look · <kbd>Esc</kbd> exit',
 };
 let hintTimer;
@@ -128,12 +130,13 @@ function setMode(m) {
   if (m === mode) return;
   tween = null;
   // where the current mode "is", so the next one starts there
-  const here = mode === 'explore' ? [controls.target.x, controls.target.z] : mode === 'fly' ? [fly.pos.x, fly.pos.z] : mode === 'boat' ? [boat.x, boat.z] : mode === 'penalty' ? [penalty.p.cx, penalty.p.cz] : mode === 'tram' ? (tramGame.active ? (({ x, z }) => [x, z])(tramGame.route.at(tramGame.s)) : [camera.position.x, camera.position.z]) : [bike.x, bike.z];
+  const here = mode === 'explore' ? [controls.target.x, controls.target.z] : mode === 'fly' ? [fly.pos.x, fly.pos.z] : mode === 'boat' ? [boat.x, boat.z] : mode === 'penalty' ? [penalty.p.cx, penalty.p.cz] : mode === 'tram' ? (tramGame.active ? (({ x, z }) => [x, z])(tramGame.route.at(tramGame.s)) : [camera.position.x, camera.position.z]) : mode === 'car' ? [car.x, car.z] : [bike.x, bike.z];
   const d = camera.getWorldDirection(new THREE.Vector3());
   const yaw = Math.atan2(-d.x, -d.z);
   if (mode === 'boat') boat.exit();
   if (mode === 'fly') fly.exit();
   if (mode === 'bike') bike.exit();
+  if (mode === 'car') car.exit();
   if (mode === 'penalty') penalty.exit();
   if (mode === 'tram') { tramGame.exit(); tramNet.setAmbientVisible(true); tramNet.setLineVisible($('[data-layer=tramline]').checked); camera.up.set(0, 1, 0); }
   photo.setOn(false);
@@ -150,6 +153,7 @@ function setMode(m) {
   if (m === 'fly') fly.enter(here[0], here[1], yaw);
   if (m === 'boat') boat.enter();
   if (m === 'bike') bike.enter(here[0], here[1]);
+  if (m === 'car') car.enter(here[0], here[1]);
   if (m === 'penalty') penalty.start(nextPitch);
   if (m === 'tram') {
     // show the route menu, looking along line 11 at Zellescher Weg
@@ -172,7 +176,7 @@ addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
   if (e.key === '/') { e.preventDefault(); $('#search').focus(); return; }
   AUDIO.initAudio();
-  if (e.code === 'KeyU' && (mode === 'explore' || mode === 'fly' || mode === 'bike' || mode === 'boat')) { toggleUI(); return; }
+  if (e.code === 'KeyU' && (mode === 'explore' || mode === 'fly' || mode === 'bike' || mode === 'boat' || mode === 'car')) { toggleUI(); return; }
   if (e.code === 'Escape') { if (closePops()) return; if (campus && campus.isOpen) { campus.close(); return; } if (photo.on) { photo.setOn(false); return; } setMode('explore'); return; }
   if (mode === 'tram') {
     if (e.code === 'Space') { if (!e.repeat && tramGame.active) tramGame.toggleDoors(); e.preventDefault(); return; }
@@ -183,6 +187,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyF' && mode === 'bike') { photo.toggle(); return; }
   if (e.code === 'Enter' && photo.on) { photo.capture(); return; }
   if (e.code === 'KeyC' && mode === 'fly') { fly.cockpit = !fly.cockpit; fly.snap = true; return; }
+  if (e.code === 'KeyC' && mode === 'car') { car.cockpit = !car.cockpit; car.snap = true; return; }
   if (e.code === 'KeyR' && mode === 'boat') { boat.reset(); boat.snap = true; return; }
   if (mode === 'penalty') {
     if (e.code === 'KeyR') { penalty.reset(); return; }
@@ -190,7 +195,7 @@ addEventListener('keydown', (e) => {
     const nudge = { ArrowLeft: [0.25, 0], ArrowRight: [-0.25, 0], ArrowUp: [0, 0.15], ArrowDown: [0, -0.15] }[e.code];
     if (nudge) { penalty.nudge(...nudge); e.preventDefault(); return; }
   }
-  const m = { Digit1: 'explore', Digit2: 'fly', Digit3: 'boat', Digit4: 'bike', Digit5: tramGame ? 'tram' : undefined }[e.code];
+  const m = { Digit1: 'explore', Digit2: 'fly', Digit3: 'boat', Digit4: 'bike', Digit5: tramGame ? 'tram' : undefined, Digit6: 'car' }[e.code];
   if (m) { setMode(m); return; }
   keys.add(e.code);
   if (mode !== 'explore' && (e.code.startsWith('Arrow') || e.code === 'Space')) e.preventDefault();
@@ -200,7 +205,7 @@ addEventListener('blur', () => keys.clear());
 
 // pointer: drag-look in fly/boat/bike, click-to-inspect in explore
 let down = null;
-const setDrag = (v) => { boat.dragging = fly.dragging = bike.dragging = v; };
+const setDrag = (v) => { boat.dragging = fly.dragging = bike.dragging = car.dragging = v; };
 canvas.addEventListener('pointerdown', (e) => { down = { moved: 0 }; setDrag(true); if (mode === 'penalty' && e.button === 0) penalty.press(); });
 addEventListener('pointermove', (e) => {
   if (mode === 'penalty') penalty.aim(e.clientX, e.clientY);
@@ -209,6 +214,7 @@ addEventListener('pointermove', (e) => {
   if (mode === 'fly') fly.drag(e.movementX, e.movementY);
   if (mode === 'boat') boat.drag(e.movementX, e.movementY);
   if (mode === 'bike') bike.drag(e.movementX, e.movementY);
+  if (mode === 'car') car.drag(e.movementX, e.movementY);
   if (mode === 'tram' && tramGame.active) tramGame.drag(e.movementX, e.movementY);
 });
 addEventListener('pointerup', (e) => {
@@ -659,18 +665,22 @@ function frame() {
   } else if (mode === 'penalty') {
     penalty.update(dt);
     focus.set(penalty.p.cx, 0, penalty.p.cz); range = 140; near = 0.1;
+  } else if (mode === 'car') {
+    car.update(dt, keys, env.nightF);
+    focus.set(car.x, 0, car.z); range = 260; near = 0.2;
+    $('#hud').innerHTML = `<b>${Math.abs(car.speed * 3.6).toFixed(0)}</b> km/h${car.speed < -0.3 ? ' reverse' : ''} <span>·</span> <b>${String(Math.round(car.compass) % 360).padStart(3, '0')}°</b>${car.street ? ` <span>·</span> ${esc(car.street)}` : ''}`;
   } else {
     bike.update(dt, keys);
     focus.set(bike.x, 0, bike.z); range = 170; near = 0.1;
     $('#hud').innerHTML = `<b>${Math.abs(bike.speed * 3.6).toFixed(0)}</b> km/h <span>·</span> <b>${String(Math.round(bike.compass) % 360).padStart(3, '0')}°</b>${bike.street ? ` <span>·</span> ${esc(bike.street)}` : ''}`;
   }
   fitViewport();
-  labels.near = mode === 'bike';
+  labels.near = mode === 'bike' || mode === 'car';
   labels.setEnabled(mode !== 'penalty' && mode !== 'tram' && $('[data-layer=labels]').checked);
   setTramNight(env.nightF);
   if (tramNet) tramNet.update(dt, env.nightF);
   people.update(dt, focus.x, focus.z, camera.position.y);
-  const fov = mode === 'bike' ? (photo.on ? photo.fov : 70) : mode === 'fly' ? 58 : mode === 'penalty' ? 46 : mode === 'tram' ? (tramGame.cabCam ? 62 : 52) : 50;
+  const fov = mode === 'bike' ? (photo.on ? photo.fov : 70) : mode === 'fly' ? 58 : mode === 'car' ? (car.cockpit ? 68 : 60) : mode === 'penalty' ? 46 : mode === 'tram' ? (tramGame.cabCam ? 62 : 52) : 50;
   if (camera.fov !== fov) camera.fov = fov;
   camera.near = near; camera.far = mode === 'bike' ? 25000 : 70000;
   // keep the 3D building visible beside the campus panel by shifting the view left
@@ -681,6 +691,7 @@ function frame() {
   if (mode === 'fly' && fly.bumped) { boundary.hit(fly.pos.x, fly.pos.y, fly.pos.z); fly.bumped = false; }
   if (mode === 'boat' && boat.bumped) { boundary.hit(boat.x, 6, boat.z); boat.bumped = false; }
   if (mode === 'bike' && bike.bumped) { boundary.hit(bike.x, 2, bike.z); bike.bumped = false; }
+  if (mode === 'car' && car.bumped) { boundary.hit(car.x, 2, car.z); car.bumped = false; }
   env.update(time, focus, range, vh);
   labels.update();
   updateInfo();
@@ -693,4 +704,4 @@ function frame() {
 progress(100, 'Ready');
 requestAnimationFrame(frame);
 setTimeout(() => { $('#load').style.opacity = 0; setTimeout(() => $('#load').remove(), 700); showHint(); }, 150);
-window.__dresden = { campus, people, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, setMode, setSeason, flyTo, renderer, keys };
+window.__dresden = { campus, people, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };

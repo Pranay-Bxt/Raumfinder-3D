@@ -17,7 +17,8 @@ function strut(g, m, a, b, r = 0.03) {
 // ---------------------------------------------------------------- ultralight
 function makeUltralight() {
   const g = new THREE.Group();
-  const white = mat('#f4f2ec'), red = mat('#c8372d'), dark = mat('#22262b'), alu = mat('#aab0b6', { roughness: 0.4, metalness: 0.6 }), tyre = mat('#18191b');
+  // Dresden yellow with black trim
+  const white = mat('#FFD400', { roughness: 0.45 }), red = mat('#111111', { roughness: 0.5 }), dark = mat('#22262b'), alu = mat('#aab0b6', { roughness: 0.4, metalness: 0.6 }), tyre = mat('#18191b');
   // cockpit pod
   const pod = part(g, new THREE.CapsuleGeometry(0.52, 1.7, 4, 10).rotateX(Math.PI / 2), white, 0, 0.55, -0.35);
   pod.scale.set(1, 0.95, 1);
@@ -287,6 +288,110 @@ export class BikeMode {
     this.body.position.copy(cam.position);
     this.body.rotation.set(0, this.heading, lean, 'YXZ');
     this.rig.userData.steer.rotation.y = this.steer * 0.42;
+    if ((this.tick = (this.tick || 0) + 1) % 10 === 0) { const r = this.world.nearestRoad(this.x, this.z, 7); this.street = r && r.d < 16 && r.name ? r.name : ''; }
+  }
+  get compass() { return ((-this.heading * 180) / Math.PI % 360 + 360) % 360; }
+}
+
+// ---------------------------------------------------------------- car (third person, drives through the streets)
+function makeCar() {
+  const g = new THREE.Group();
+  const paint = mat('#FFD400', { roughness: 0.35, metalness: 0.25, flatShading: false }), black = mat('#111214', { roughness: 0.5 });
+  const glass = mat('#1d2a36', { roughness: 0.08, metalness: 0.6 }), tyre = mat('#141516', { roughness: 0.9 }), rim = mat('#c9ced3', { roughness: 0.3, metalness: 0.8 });
+  const head = new THREE.MeshStandardMaterial({ color: '#fff7d8', emissive: '#fff2c4', emissiveIntensity: 0.6 }), tail = new THREE.MeshStandardMaterial({ color: '#7a0d0d', emissive: '#ff2a1a', emissiveIntensity: 0.5 });
+  // body (the car points towards -z)
+  part(g, new THREE.BoxGeometry(1.8, 0.62, 4.0), paint, 0, 0.62, 0);
+  part(g, new THREE.BoxGeometry(1.84, 0.2, 4.06), black, 0, 0.36, 0); // sills and bumpers
+  part(g, new THREE.BoxGeometry(1.58, 0.56, 2.1), paint, 0, 1.2, 0.25); // cabin
+  part(g, new THREE.BoxGeometry(1.5, 0.5, 0.06), glass, 0, 1.18, -0.83).rotation.x = -0.5; // windscreen
+  part(g, new THREE.BoxGeometry(1.5, 0.46, 0.06), glass, 0, 1.18, 1.33).rotation.x = 0.4; // rear window
+  for (const s of [-1, 1]) part(g, new THREE.BoxGeometry(0.04, 0.36, 1.8), glass, s * 0.8, 1.22, 0.27); // side windows
+  part(g, new THREE.BoxGeometry(1.6, 0.04, 2.0), black, 0, 1.49, 0.25); // roof
+  for (const s of [-1, 1]) part(g, new THREE.BoxGeometry(0.26, 0.025, 4.02), black, s * 0.2, 0.94, 0); // racing stripes
+  for (const s of [-1, 1]) { part(g, new THREE.BoxGeometry(0.36, 0.16, 0.05), head, s * 0.62, 0.7, -2.01); part(g, new THREE.BoxGeometry(0.34, 0.14, 0.05), tail, s * 0.64, 0.72, 2.01); }
+  part(g, new THREE.BoxGeometry(0.9, 0.18, 0.05), black, 0, 0.55, -2.02); // grille
+  const wheels = [];
+  for (const [x, z] of [[-0.86, -1.3], [0.86, -1.3], [-0.86, 1.3], [0.86, 1.3]]) {
+    const w = new THREE.Group(); w.position.set(x, 0.34, z); g.add(w);
+    const spin = new THREE.Group(); w.add(spin);
+    part(spin, new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14).rotateZ(Math.PI / 2), tyre);
+    part(spin, new THREE.BoxGeometry(0.26, 0.42, 0.08), rim); // hub with spokes, so the spinning shows
+    part(spin, new THREE.BoxGeometry(0.26, 0.08, 0.42), rim);
+    wheels.push({ w, spin });
+  }
+  g.userData = { wheels, head, tail };
+  return g;
+}
+
+export class CarMode {
+  constructor(camera, scene, world, start) {
+    this.camera = camera; this.world = world; this.home = start;
+    this.car = makeCar(); this.car.visible = false; scene.add(this.car);
+    this.x = 0; this.z = 0; this.y = 0; this.heading = 0; this.speed = 0; this.steer = 0; this.camYaw = 0; this.camPitch = 0.22; this.cockpit = false; this.street = ''; this.spin = 0;
+  }
+  ok(x, z) {
+    const e = this.world.ext;
+    if (x < e.minX + 12 || x > e.maxX - 12 || z < e.minZ + 12 || z > e.maxZ - 12) return false;
+    if (this.world.solidAt(x, z)) return false;
+    return this.world.riverAt(x, z) < 0.45 || this.world.bridgeAt(x, z);
+  }
+  /** do the four corners of the car (slightly inset) fit at (x, z) with heading h? */
+  fits(x, z, h) {
+    const fx = -Math.sin(h), fz = -Math.cos(h), rx = -fz, rz = fx;
+    for (const [a, b] of [[1.9, 0.8], [1.9, -0.8], [-1.9, 0.8], [-1.9, -0.8]]) if (!this.ok(x + fx * a + rx * b, z + fz * a + rz * b)) return false;
+    return true;
+  }
+  /** start on the street nearest to (x, z) */
+  enter(x, z) {
+    let r = this.world.nearestRoad(x, z, 4);
+    if (!r || r.d > 120 || !this.fits(r.x, r.z, Math.atan2(-r.dx, -r.dz))) r = this.world.nearestRoad(this.home[0], this.home[1], 4) || { x: this.home[0], z: this.home[1], dx: 0, dz: -1 };
+    this.x = r.x; this.z = r.z; this.heading = Math.atan2(-r.dx, -r.dz); this.speed = 0; this.steer = 0; this.camYaw = 0;
+    this.y = this.surfaceY(this.x, this.z);
+    this.car.visible = true; this.snap = true;
+  }
+  exit() { this.car.visible = false; }
+  surfaceY(x, z) { return this.world.bridgeAt(x, z) ? 0.2 : this.world.groundY(x, z) + 0.05; }
+  drag(dx, dy) { this.camYaw -= dx * 0.005; this.camPitch = clamp(this.camPitch + dy * 0.004, 0.02, 1.1); }
+  update(dt, keys, night = 0) {
+    const gas = down(keys, 'KeyW', 'ArrowUp'), brake = down(keys, 'KeyS', 'ArrowDown');
+    const sIn = down(keys, 'KeyA', 'ArrowLeft') - down(keys, 'KeyD', 'ArrowRight');
+    const top = down(keys, 'ShiftLeft', 'ShiftRight') ? 33 : 19; // ~120 km/h with boost, ~70 km/h normally
+    if (gas) this.speed += (this.speed < 0 ? 14 : 7.5 * (1 - this.speed / top)) * dt;
+    else if (brake) this.speed -= (this.speed > 0.5 ? 14 : 4) * dt;
+    else this.speed -= this.speed * 0.45 * dt;
+    this.speed = clamp(this.speed, -7, Math.max(top, this.speed - 6 * dt));
+    if (!gas && !brake && Math.abs(this.speed) < 0.15) this.speed = 0;
+    this.steer += (sIn - this.steer) * ease(6, dt);
+    // bicycle model: yaw rate = v * tan(steering angle) / wheelbase, with less lock at speed
+    const v = this.speed, lock = 0.6 / (1 + Math.abs(v) * 0.045);
+    const nh = this.heading + ((v * Math.tan(this.steer * lock)) / 2.6) * dt;
+    const fx = -Math.sin(nh), fz = -Math.cos(nh), nx = this.x + fx * v * dt, nz = this.z + fz * v * dt;
+    let hit = false;
+    if (this.fits(nx, nz, nh)) { this.x = nx; this.z = nz; this.heading = nh; }
+    else if (this.fits(this.x, this.z, nh)) { this.heading = nh; this.speed *= -0.25; hit = true; }
+    else { this.speed *= -0.25; hit = true; }
+    if (hit) { const e = this.world.ext; if (nx < e.minX + 16 || nx > e.maxX - 16 || nz < e.minZ + 16 || nz > e.maxZ - 16) this.bumped = true; }
+    this.y += (this.surfaceY(this.x, this.z) - this.y) * ease(10, dt);
+    const c = this.car, ud = c.userData;
+    c.position.set(this.x, this.y, this.z);
+    c.rotation.set(clamp((brake - gas) * 0.012 * (v >= 0 ? 1 : -1), -0.02, 0.02), this.heading, -this.steer * 0.035 * Math.min(1, Math.abs(v) / 10), 'YXZ');
+    this.spin -= (v * dt) / 0.34;
+    ud.wheels.forEach(({ w, spin }, i) => { w.rotation.y = i < 2 ? this.steer * lock : 0; spin.rotation.x = this.spin; });
+    ud.head.emissiveIntensity = 0.4 + night * 3; ud.tail.emissiveIntensity = (brake && v > 0.5 ? 2.5 : 0.4) + night * 1.2;
+    // camera: chase cam behind the car, or the driver's seat (C)
+    const a = this.heading + this.camYaw;
+    if (this.cockpit) {
+      const sx = Math.cos(this.heading), sz = -Math.sin(this.heading); // car's right-hand side
+      this.camera.position.set(this.x - sx * 0.38 - Math.sin(this.heading) * 0.1, this.y + 1.25, this.z - sz * 0.38 - Math.cos(this.heading) * 0.1);
+      this.camera.rotation.set(-0.06 - (this.camPitch - 0.22) * 0.6, a, 0, 'YXZ');
+      c.visible = true;
+    } else {
+      if (!this.dragging && Math.abs(v) > 1) this.camYaw *= 1 - Math.min(1, 1.5 * dt);
+      const dist = 8.5 + Math.abs(v) * 0.12, cp = Math.cos(this.camPitch);
+      const want = new THREE.Vector3(this.x + Math.sin(a) * dist * cp, this.y + 1.6 + Math.sin(this.camPitch) * dist, this.z + Math.cos(a) * dist * cp);
+      if (this.snap) { this.camera.position.copy(want); this.snap = false; } else this.camera.position.lerp(want, ease(6, dt));
+      this.camera.lookAt(this.x + fx * 4, this.y + 1.2, this.z + fz * 4);
+    }
     if ((this.tick = (this.tick || 0) + 1) % 10 === 0) { const r = this.world.nearestRoad(this.x, this.z, 7); this.street = r && r.d < 16 && r.name ? r.name : ''; }
   }
   get compass() { return ((-this.heading * 180) / Math.PI % 360 + 360) % 360; }
