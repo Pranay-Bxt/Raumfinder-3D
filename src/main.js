@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/addons/controls/MapControls.js';
 import { makeBoundary, keepInside } from './boundary.js';
+import { Leaves } from './leaves.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -65,6 +66,7 @@ const sportsWorld = sports ? buildSports(sports, world) : { group: new THREE.Gro
 scene.add(sportsWorld.group);
 // people, DVB tram line 11 and the tram simulator
 const people = new People(scene, data.roads.ways);
+const leaves = new Leaves(scene, world); // fallen + wind-blown leaves near the camera
 let tramNet = null, tramGame = null;
 if (tramData) {
   tramNet = new TramNetwork(scene, TramRoute.build(tramData, {}));
@@ -551,6 +553,7 @@ function setSeason(s, moveDate) {
   if (moveDate) { [T.m, T.d] = SEASON_DATE[s]; live = false; computeSunTimes(); }
   env.setSeason(s);
   people.setSeason(s);
+  leaves.setSeason(s);
   applyTime();
 }
 $$('[data-s]').forEach((b) => (b.onclick = () => setSeason(b.dataset.s, true)));
@@ -565,6 +568,7 @@ setInterval(() => { if (live) { T = nowBerlin(); applyTime(); } }, 30000);
 $$('[data-w]').forEach((b) => (b.onclick = () => {
   $$('[data-w]').forEach((x) => x.classList.toggle('on', x === b));
   env.setWeather(b.dataset.w);
+  leaves.setWeather(b.dataset.w);
 }));
 
 // ---------- layers / share ----------
@@ -589,6 +593,7 @@ $$('[data-layer]').forEach((c) => c.addEventListener('change', () => {
     case 'effects': effects = on; break;
     case 'aerial': world.setAerial(on); break;
     case 'people': people.setEnabled(on); break;
+    case 'leaves': leaves.setEnabled(on); break;
     case 'tramline': if (tramNet) tramNet.setLineVisible(on); break;
   }
 }));
@@ -680,6 +685,7 @@ function frame() {
   setTramNight(env.nightF);
   if (tramNet) tramNet.update(dt, env.nightF);
   people.update(dt, focus.x, focus.z, camera.position.y);
+  leaves.update(dt, focus.x, focus.z, camera.position.y);
   const fov = mode === 'bike' ? (photo.on ? photo.fov : 70) : mode === 'fly' ? 58 : mode === 'car' ? (car.cockpit ? 68 : 60) : mode === 'penalty' ? 46 : mode === 'tram' ? (tramGame.cabCam ? 62 : 52) : 50;
   if (camera.fov !== fov) camera.fov = fov;
   camera.near = near; camera.far = mode === 'bike' ? 25000 : 70000;
@@ -704,4 +710,4 @@ function frame() {
 progress(100, 'Ready');
 requestAnimationFrame(frame);
 setTimeout(() => { $('#load').style.opacity = 0; setTimeout(() => $('#load').remove(), 700); showHint(); }, 150);
-window.__dresden = { campus, people, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };
+window.__dresden = { campus, people, leaves, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };

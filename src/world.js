@@ -342,7 +342,24 @@ export function buildWorld(data, renderer) {
   // spatial index of roads (bicycle HUD / spawn)
   const RG = 40, roadGrid = new Map();
   const addRoadPoint = (x, z, ni, dx, dz, cls) => { const k = Math.floor(x / RG) + ',' + Math.floor(z / RG); (roadGrid.get(k) || roadGrid.set(k, []).get(k)).push([x, z, ni, dx, dz, cls]); };
+  const SG = 40, segGrid = new Map();
+  const addSeg = (ax, az, bx, bz, half, paved) => {
+    const r = half + 2.4, x0 = Math.floor((Math.min(ax, bx) - r) / SG), x1 = Math.floor((Math.max(ax, bx) + r) / SG), z0 = Math.floor((Math.min(az, bz) - r) / SG), z1 = Math.floor((Math.max(az, bz) + r) / SG);
+    const seg = [ax, az, bx, bz, half, paved];
+    for (let gx = x0; gx <= x1; gx++) for (let gz = z0; gz <= z1; gz++) { const k = gx + ',' + gz; (segGrid.get(k) || segGrid.set(k, []).get(k)).push(seg); }
+  };
+  /** how far (x, z) is inside the nearest road/track ribbon (> 0 = on it); 'paved' extends to the sidewalks */
+  function roadInside(x, z, withSidewalk = false) {
+    let best = -1e9;
+    for (const s of segGrid.get(Math.floor(x / SG) + ',' + Math.floor(z / SG)) || []) {
+      const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2));
+      const d = Math.hypot(x - s[0] - dx * t, z - s[1] - dz * t), inside = (withSidewalk ? s[5] : s[4]) - d;
+      if (inside > best) best = inside;
+    }
+    return best;
+  }
   const piers = [];
+  const rails = { pos: [], idx: [] }, posts = [];
   for (const [cls, isBridge, w, pts, marks, surf, sw, ni, oneway] of roads) {
     const name = cls === 7 ? 'paths' : cls >= 8 ? 'rail' : cls <= 3 ? 'major' : 'minor';
     const typ = cls === 9 ? 2 : cls === 8 ? 3 : cls >= 6 ? 1 : 0;
@@ -350,12 +367,35 @@ export function buildWorld(data, renderer) {
     const cum = ribbon(layers[name], pts, w / 2, RY[name], c, marks + (oneway ? 0.5 : 0), surf, typ);
     if (sw && !isBridge) ribbon(layers.sidewalk, pts, w / 2 + 2.2, RY.sidewalk, COL.walk, w / 2, 2, 4);
     const n = pts.length / 2;
+    for (let i = 0; i < n - 1; i++) addSeg(pts[i * 2], pts[i * 2 + 1], pts[i * 2 + 2], pts[i * 2 + 3], w / 2, w / 2 + (sw && !isBridge ? 2.4 : 0.3));
     if (cls <= 7) for (let i = 0; i < n - 1; i++) {
       const dx = pts[i * 2 + 2] - pts[i * 2], dz = pts[i * 2 + 3] - pts[i * 2 + 1], l = Math.hypot(dx, dz) || 1, st = Math.max(1, Math.ceil(l / 15));
       for (let k = 0; k < st; k++) addRoadPoint(pts[i * 2] + (dx * k) / st, pts[i * 2 + 1] + (dz * k) / st, ni, dx / l, dz / l, cls);
     }
     if (isBridge && cls !== 5) {
       const [BL, BR] = offsets(pts, w / 2 + 0.9), b0 = bridge.pos.length / 3, yt = 0.05, yb = -1.4;
+      // railings: a top rail and a middle rail (thin vertical strips) plus posts every ~2.4 m, just inside the deck edge.
+      // Only on the outer edge of the whole bridge: where another deck (tram tracks, sidewalk...) continues, skip it.
+      const [IL, IR] = offsets(pts, w / 2 + 0.75);
+      for (const E of [IL, IR]) {
+        const outer = new Uint8Array(n);
+        for (let i = 0; i < n; i++) {
+          const ox = E[i * 2] - pts[i * 2], oz = E[i * 2 + 1] - pts[i * 2 + 1], ol = Math.hypot(ox, oz) || 1;
+          outer[i] = bridgeAt(E[i * 2] + (ox / ol) * 2.6, E[i * 2 + 1] + (oz / ol) * 2.6) ? 0 : 1;
+        }
+        for (const [y0, y1] of [[1.0, 1.12], [0.5, 0.56]]) {
+          const r0 = rails.pos.length / 3;
+          for (let i = 0; i < n; i++) rails.pos.push(E[i * 2], y0, E[i * 2 + 1], E[i * 2], y1, E[i * 2 + 1]);
+          for (let i = 0; i < n - 1; i++) if (outer[i] && outer[i + 1]) { const q = r0 + i * 2; rails.idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
+        }
+        let carry = 0;
+        for (let i = 0; i < n - 1; i++) {
+          const ax = E[i * 2], az = E[i * 2 + 1], dx = E[i * 2 + 2] - ax, dz = E[i * 2 + 3] - az, l = Math.hypot(dx, dz);
+          if (outer[i] && outer[i + 1]) for (let t = carry; t < l; t += 2.4) posts.push(ax + (dx * t) / l, az + (dz * t) / l, Math.atan2(dx, dz));
+          carry = (((carry - l) % 2.4) + 2.4) % 2.4;
+        }
+        if (outer[n - 1]) posts.push(E[(n - 1) * 2], E[(n - 1) * 2 + 1], 0);
+      }
       for (let i = 0; i < n; i++) {
         bridge.pos.push(BL[i * 2], yt, BL[i * 2 + 1], BR[i * 2], yt, BR[i * 2 + 1], BL[i * 2], yb, BL[i * 2 + 1], BR[i * 2], yb, BR[i * 2 + 1]);
         if (i < n - 1) {
@@ -462,6 +502,18 @@ export function buildWorld(data, renderer) {
   const bridges = new THREE.Mesh(bgeo, stone);
   bridges.castShadow = true;
   group.add(bridges);
+  const ironMat = new THREE.MeshStandardMaterial({ color: '#2c3133', roughness: 0.55, metalness: 0.6, side: THREE.DoubleSide });
+  if (rails.idx.length) {
+    const rg = new THREE.BufferGeometry();
+    rg.setAttribute('position', new THREE.Float32BufferAttribute(rails.pos, 3)); rg.setIndex(rails.idx); rg.computeVertexNormals();
+    const rm = new THREE.Mesh(rg, ironMat); rm.castShadow = true; bridges.add(rm);
+  }
+  if (posts.length) {
+    const np = posts.length / 3, pg = new THREE.BoxGeometry(0.07, 1.12, 0.07).translate(0, 0.56, 0), pim = new THREE.InstancedMesh(pg, ironMat, np);
+    const M = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), v = new THREE.Vector3();
+    for (let i = 0; i < np; i++) pim.setMatrixAt(i, M.compose(v.set(posts[i * 3], 0.05, posts[i * 3 + 1]), q.setFromAxisAngle(up, posts[i * 3 + 2]), one));
+    pim.castShadow = true; pim.computeBoundingSphere(); bridges.add(pim);
+  }
   if (piers.length) {
     const pm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 11, 3.2).translate(0, -6.9, 0), stone, piers.length);
     const M = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
@@ -483,7 +535,7 @@ export function buildWorld(data, renderer) {
   for (let i = 0; i < nT; i++) {
     const x = all[i * 2], z = all[i * 2 + 1];
     const r = [rnd(), rnd(), rnd(), rnd(), rnd()];
-    if (sample(x, z, 0) > 0.3 || sample(x, z, 1) > 0.3 || solidAt(x, z)) continue;
+    if (sample(x, z, 0) > 0.3 || sample(x, z, 1) > 0.3 || solidAt(x, z) || roadInside(x, z) > -0.6) continue;
     const k = Math.floor(x / TC) + ',' + Math.floor(z / TC);
     (treeCells.get(k) || treeCells.set(k, []).get(k)).push([x, z, r]);
   }
@@ -497,6 +549,7 @@ export function buildWorld(data, renderer) {
       if (r2() > p * (1 - (d / BAND) * 0.3)) continue;
       // keep the river corridor open where the Elbe leaves the map
       if (riverAt(Math.min(maxX - 3, Math.max(minX + 3, x)), Math.min(maxZ - 3, Math.max(minZ + 3, z))) > 0.1) continue;
+      if (roadInside(x, z) > -1) continue;
       const k = Math.floor(x / TC) + ',' + Math.floor(z / TC);
       (treeCells.get(k) || treeCells.set(k, []).get(k)).push([x, z, [r2(), r2(), r2(), r2(), woods > 0.6 ? r2() * 0.3 : r2()]]);
       placed++;
@@ -686,7 +739,9 @@ export function buildWorld(data, renderer) {
 
   return {
     group, ground, water, waterMat, roadMeshes, bridges, treeGroup, bGroup, U, ext: meta.ext,
-    riverAt, groundY, solidAt, bridgeAt, heightAt, nearestRoad, setSeason, setAerial,
+    riverAt, groundY, solidAt, bridgeAt, heightAt, nearestRoad, setSeason, setAerial, roadInside,
+    /** height of the walkable surface: roads and sidewalks sit a little above the ground */
+    surfaceAt: (x, z) => (bridgeAt(x, z) ? 0.25 : roadInside(x, z, true) > 0 ? 0.2 : groundY(x, z) + 0.03),
     isWater: (x, z) => x > minX + 20 && x < maxX - 20 && z > minZ + 20 && z < maxZ - 20 && riverAt(x, z) > 0.8,
   };
 }
