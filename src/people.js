@@ -52,6 +52,9 @@ export class People {
       else if (cls === 6) add(Float32Array.from(pts), !!bridge);
       else if (sw && !bridge && cls >= 1 && cls <= 4) { const p = Float32Array.from(pts); add(offsetPoly(p, w / 2 + 1.15), false); add(offsetPoly(p, -(w / 2 + 1.15)), false); }
     }
+    // nobody walks along a road: cut every walkway where it runs on a carriageway or track, except short
+    // straight-across stretches, which become crossings (and get a zebra painted on the road)
+    if (opts.world) this.walk = this.keepOffRoads(this.walk, opts.world, scene);
     this.CS = 100; this.grid = new Map();
     this.walk.forEach((wk, wi) => {
       const p = wk.p, n = p.length / 2, seen = new Set();
@@ -87,6 +90,62 @@ export class People {
     // ---- waiting groups per stop
     this.groups = []; this.waitNext = this.walkN; this.alightNext = this.walkN + this.waitN;
     this.focus = [0, 0];
+  }
+  keepOffRoads(raw, W, scene) {
+    const STEP = 2, out = [], zebras = [];
+    for (const wk of raw) {
+      if (wk.bridge) { out.push(wk); continue; }
+      const p = wk.p, n = p.length / 2, S = [];
+      for (let i = 0; i < n - 1; i++) {
+        const ax = p[i * 2], az = p[i * 2 + 1], bx = p[i * 2 + 2], bz = p[i * 2 + 3], k = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / STEP));
+        for (let j = 0; j < k; j++) { const x = ax + ((bx - ax) * j) / k, z = az + ((bz - az) * j) / k, ins = W.carriageInside(x, z); S.push([x, z, ins > 0.1 ? 1 : 0, j === 0 ? 1 : 0, W.carriageClass()]); }
+      }
+      { const x = p[n * 2 - 2], z = p[n * 2 - 1], ins = W.carriageInside(x, z); S.push([x, z, ins > 0.1 ? 1 : 0, 1, W.carriageClass()]); }
+      const keep = new Uint8Array(S.length).fill(1);
+      for (let i = 0; i < S.length; ) {
+        if (!S[i][2]) { i++; continue; }
+        let j = i; while (j + 1 < S.length && S[j + 1][2]) j++;
+        // a crossing: starts and ends off the road, short, and goes across it rather than along it
+        let ok = i > 0 && j < S.length - 1 && Math.hypot(S[j][0] - S[i][0], S[j][1] - S[i][1]) + STEP <= 20;
+        if (ok) {
+          const r = W.nearestRoad((S[i][0] + S[j][0]) / 2, (S[i][1] + S[j][1]) / 2, 5), dx = S[j + 1][0] - S[i - 1][0], dz = S[j + 1][1] - S[i - 1][1], dl = Math.hypot(dx, dz) || 1;
+          if (r && r.d < 15 && Math.abs((dx * r.dx + dz * r.dz) / dl) > 0.6) ok = false;
+        }
+        if (ok) { if (S[i][4] >= 1 && S[i][4] <= 5) zebras.push([S[i][0], S[i][1], S[j][0], S[j][1]]); }
+        else for (let k = i; k <= j; k++) keep[k] = 0;
+        i = j + 1;
+      }
+      let cur = [];
+      const flush = () => { if (cur.length >= 4) { let L = 0; for (let k = 2; k < cur.length; k += 2) L += Math.hypot(cur[k] - cur[k - 2], cur[k + 1] - cur[k - 1]); if (L >= 3) out.push({ p: Float32Array.from(cur), bridge: false }); } cur = []; };
+      for (let k = 0; k < S.length; k++) {
+        if (!keep[k]) { flush(); continue; }
+        const edge = k === 0 || k === S.length - 1 || !keep[k - 1] || !keep[k + 1];
+        if (S[k][3] || edge || !cur.length) cur.push(S[k][0], S[k][1]);
+      }
+      flush();
+    }
+    this.zebraCount = zebras.length;
+    if (zebras.length) scene.add(this.makeZebras(zebras));
+    return out;
+  }
+  /** white zebra stripes across the road where people cross */
+  makeZebras(list) {
+    const cv = document.createElement('canvas'); cv.width = 4; cv.height = 1;
+    const cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, 2, 1);
+    const tex = new THREE.CanvasTexture(cv); tex.wrapS = THREE.RepeatWrapping; tex.magFilter = THREE.NearestFilter;
+    const pos = [], uv = [], idx = [];
+    for (const [ax0, az0, bx0, bz0] of list) {
+      let dx = bx0 - ax0, dz = bz0 - az0; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+      const ax = ax0 - dx * 1.2, az = az0 - dz * 1.2, bx = bx0 + dx * 1.2, bz = bz0 + dz * 1.2, L = l + 2.4, hw = 1.6, px = -dz * hw, pz = dx * hw, b = pos.length / 3;
+      pos.push(ax + px, 0.2, az + pz, ax - px, 0.2, az - pz, bx + px, 0.2, bz + pz, bx - px, 0.2, bz - pz);
+      uv.push(0, 0, 0, 1, L / 1.0, 0, L / 1.0, 1); // one stripe + gap per metre
+      idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, color: '#eeeeea', transparent: true, alphaTest: 0.5, depthWrite: false, roughness: 0.85, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
+    m.renderOrder = 7; m.receiveShadow = true; m.name = 'zebras';
+    return m;
   }
   zero() { for (const m of this.meshes) m.instanceMatrix.array.fill(0); }
   recolor() {

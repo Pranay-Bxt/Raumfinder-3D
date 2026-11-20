@@ -193,6 +193,20 @@
   #campus .cp-note { color: var(--dim); font-size: 11px; margin: 0; padding: 6px 10px; } #campus .cp-note a { color: var(--acc); }
   @media (max-width: 900px) { #campus { left: 8px; right: 8px; width: auto; top: 78px; max-height: calc(100vh - 90px); } #campus .cp-main { grid-template-columns: 1fr; } #campus .cp-left { border-right: 0; border-bottom: 1px solid var(--line); } #campus .cp-grid { grid-auto-columns: calc((100% - 12px) / 3); } }
   @media (max-width: 1050px) { #brand small { display: none; } }
+  /* ---- plane crash / rewind overlay ---- */
+  #crash { position: fixed; inset: 0; pointer-events: none; z-index: 9; display: none; align-items: center; justify-content: center; }
+  #crash.show { display: flex; }
+  #crash b { display: none; font-weight: 400; letter-spacing: .12em; text-shadow: 0 0 24px rgba(0,0,0,.8), 0 4px 0 #000; }
+  #crash.crash { background: radial-gradient(circle, rgba(255,120,0,.0) 30%, rgba(120,20,0,.45) 100%); animation: flash .5s ease-out; }
+  #crash.crash .c1 { display: block; font-size: min(18vw, 150px); color: var(--acc); -webkit-text-stroke: 3px #111; animation: shake .09s infinite alternate; }
+  #crash.rewind { background: rgba(20,30,60,.18); }
+  #crash.rewind .c2 { display: block; font-size: min(12vw, 96px); color: #fff; animation: blinkrw .5s steps(1) infinite; }
+  #crash .scan { position: absolute; inset: 0; display: none; background: repeating-linear-gradient(0deg, rgba(255,255,255,.07) 0 2px, transparent 2px 5px); }
+  #crash.rewind .scan { display: block; animation: roll 1.7s linear infinite; }
+  @keyframes shake { from { transform: translate(-4px, 2px) rotate(-2deg); } to { transform: translate(4px, -2px) rotate(2deg); } }
+  @keyframes flash { from { background-color: rgba(255,240,200,.85); } to { background-color: transparent; } }
+  @keyframes blinkrw { 50% { opacity: .35; } }
+  @keyframes roll { from { background-position: 0 0; } to { background-position: 0 -120px; } }
   /* ---- settings toolbar + popups ---- */
   #tools { right: 12px; bottom: 12px; display: flex; gap: 6px; padding: 6px; align-items: center; }
   .pop { right: 12px; bottom: 64px; padding: 12px 14px; display: none; width: min(560px, calc(100vw - 24px)); z-index: 8; }
@@ -234,6 +248,7 @@
 </div>
 
 <div id="hud" class="panel"></div>
+<div id="crash"><b class="c1">CRASH!</b><b class="c2">&#9664;&#9664; REWIND</b><i class="scan"></i></div>
 <div id="hint"></div>
 
 <div id="left" class="panel">

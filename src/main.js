@@ -65,7 +65,7 @@ scene.add(boundary.mesh);
 const sportsWorld = sports ? buildSports(sports, world) : { group: new THREE.Group(), pitches: [] };
 scene.add(sportsWorld.group);
 // people, DVB tram line 11 and the tram simulator
-const people = new People(scene, data.roads.ways);
+const people = new People(scene, data.roads.ways, { world });
 const leaves = new Leaves(scene, world); // fallen + wind-blown leaves near the camera
 let tramNet = null, tramGame = null;
 if (tramData) {
@@ -91,6 +91,9 @@ controls.enableDamping = true; controls.dampingFactor = 0.07;
 controls.rotateSpeed = 0.6; controls.panSpeed = 0.7; controls.zoomSpeed = 0.7; // a little slower and calmer than the defaults
 controls.minDistance = 30; controls.maxDistance = 12000; controls.maxPolarAngle = 1.5; controls.zoomToCursor = true;
 const fly = new FlyMode(camera, scene, world);
+fly.onCrash = () => { AUDIO.initAudio(); AUDIO.boom(); $('#crash').className = 'show crash'; };
+fly.onRewind = () => { AUDIO.rewind(); $('#crash').className = 'show rewind'; };
+fly.onResume = () => { $('#crash').className = ''; };
 const boat = new BoatMode(camera, scene, world, project(51.0562, 13.7425));
 const bike = new BikeMode(camera, scene, world, project(51.0537, 13.7372));
 const car = new CarMode(camera, scene, world, project(51.0537, 13.7372));
@@ -136,7 +139,7 @@ function setMode(m) {
   const d = camera.getWorldDirection(new THREE.Vector3());
   const yaw = Math.atan2(-d.x, -d.z);
   if (mode === 'boat') boat.exit();
-  if (mode === 'fly') fly.exit();
+  if (mode === 'fly') { fly.exit(); $('#crash').className = ''; }
   if (mode === 'bike') bike.exit();
   if (mode === 'car') car.exit();
   if (mode === 'penalty') penalty.exit();

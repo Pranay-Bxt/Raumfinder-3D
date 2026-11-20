@@ -343,9 +343,9 @@ export function buildWorld(data, renderer) {
   const RG = 40, roadGrid = new Map();
   const addRoadPoint = (x, z, ni, dx, dz, cls) => { const k = Math.floor(x / RG) + ',' + Math.floor(z / RG); (roadGrid.get(k) || roadGrid.set(k, []).get(k)).push([x, z, ni, dx, dz, cls]); };
   const SG = 40, segGrid = new Map();
-  const addSeg = (ax, az, bx, bz, half, paved) => {
+  const addSeg = (ax, az, bx, bz, half, paved, cls) => {
     const r = half + 2.4, x0 = Math.floor((Math.min(ax, bx) - r) / SG), x1 = Math.floor((Math.max(ax, bx) + r) / SG), z0 = Math.floor((Math.min(az, bz) - r) / SG), z1 = Math.floor((Math.max(az, bz) + r) / SG);
-    const seg = [ax, az, bx, bz, half, paved];
+    const seg = [ax, az, bx, bz, half, paved, cls];
     for (let gx = x0; gx <= x1; gx++) for (let gz = z0; gz <= z1; gz++) { const k = gx + ',' + gz; (segGrid.get(k) || segGrid.set(k, []).get(k)).push(seg); }
   };
   /** how far (x, z) is inside the nearest road/track ribbon (> 0 = on it); 'paved' extends to the sidewalks */
@@ -358,6 +358,18 @@ export function buildWorld(data, renderer) {
     }
     return best;
   }
+  /** how far (x, z) is inside a carriageway or track (cars, trains, trams; > 0 = on it), and that road's class */
+  let carriageCls = -1;
+  function carriageInside(x, z) {
+    let best = -1e9; carriageCls = -1;
+    for (const s of segGrid.get(Math.floor(x / SG) + ',' + Math.floor(z / SG)) || []) {
+      if (s[6] === 6 || s[6] === 7) continue; // pedestrian streets and footways are fine to walk on
+      const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2));
+      const inside = s[4] - Math.hypot(x - s[0] - dx * t, z - s[1] - dz * t);
+      if (inside > best) { best = inside; carriageCls = s[6]; }
+    }
+    return best;
+  }
   const piers = [];
   const rails = { pos: [], idx: [] }, posts = [];
   for (const [cls, isBridge, w, pts, marks, surf, sw, ni, oneway] of roads) {
@@ -367,7 +379,7 @@ export function buildWorld(data, renderer) {
     const cum = ribbon(layers[name], pts, w / 2, RY[name], c, marks + (oneway ? 0.5 : 0), surf, typ);
     if (sw && !isBridge) ribbon(layers.sidewalk, pts, w / 2 + 2.2, RY.sidewalk, COL.walk, w / 2, 2, 4);
     const n = pts.length / 2;
-    for (let i = 0; i < n - 1; i++) addSeg(pts[i * 2], pts[i * 2 + 1], pts[i * 2 + 2], pts[i * 2 + 3], w / 2, w / 2 + (sw && !isBridge ? 2.4 : 0.3));
+    for (let i = 0; i < n - 1; i++) addSeg(pts[i * 2], pts[i * 2 + 1], pts[i * 2 + 2], pts[i * 2 + 3], w / 2, w / 2 + (sw && !isBridge ? 2.4 : 0.3), cls);
     if (cls <= 7) for (let i = 0; i < n - 1; i++) {
       const dx = pts[i * 2 + 2] - pts[i * 2], dz = pts[i * 2 + 3] - pts[i * 2 + 1], l = Math.hypot(dx, dz) || 1, st = Math.max(1, Math.ceil(l / 15));
       for (let k = 0; k < st; k++) addRoadPoint(pts[i * 2] + (dx * k) / st, pts[i * 2 + 1] + (dz * k) / st, ni, dx / l, dz / l, cls);
@@ -739,7 +751,7 @@ export function buildWorld(data, renderer) {
 
   return {
     group, ground, water, waterMat, roadMeshes, bridges, treeGroup, bGroup, U, ext: meta.ext,
-    riverAt, groundY, solidAt, bridgeAt, heightAt, nearestRoad, setSeason, setAerial, roadInside,
+    riverAt, groundY, solidAt, bridgeAt, heightAt, nearestRoad, setSeason, setAerial, roadInside, carriageInside, carriageClass: () => carriageCls,
     /** height of the walkable surface: roads and sidewalks sit a little above the ground */
     surfaceAt: (x, z) => (bridgeAt(x, z) ? 0.25 : roadInside(x, z, true) > 0 ? 0.2 : groundY(x, z) + 0.03),
     isWater: (x, z) => x > minX + 20 && x < maxX - 20 && z > minZ + 20 && z < maxZ - 20 && riverAt(x, z) > 0.8,

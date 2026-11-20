@@ -56,12 +56,67 @@ function makeUltralight() {
   return g;
 }
 
+// explosion when the ultralight hits something: fireball, smoke, yellow/black debris
+class CrashFx {
+  constructor(scene) {
+    this.g = new THREE.Group(); this.g.visible = false; scene.add(this.g);
+    const hot = (r, g, b, o) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b), transparent: true, opacity: o, depthWrite: false, fog: false });
+    this.fire = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), hot(4.5, 1.7, 0.35, 0.9)); this.g.add(this.fire);
+    this.core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), hot(7, 6, 3.5, 1)); this.g.add(this.core);
+    this.NS = 30; this.NB = 26;
+    this.smokeMat = new THREE.MeshStandardMaterial({ color: '#3a3633', roughness: 1, transparent: true, opacity: 0.75, depthWrite: false });
+    this.smoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), this.smokeMat, this.NS); this.smoke.frustumCulled = false; this.g.add(this.smoke);
+    this.debris = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.6 }), this.NB); this.debris.frustumCulled = false; this.debris.castShadow = true; this.g.add(this.debris);
+    const yellow = new THREE.Color('#FFD400'), black = new THREE.Color('#151515');
+    for (let i = 0; i < this.NB; i++) this.debris.setColorAt(i, i % 3 === 0 ? black : yellow);
+    this.sp = new Float32Array(this.NS * 5); this.db = new Float32Array(this.NB * 12);
+    this.M = new THREE.Matrix4(); this.Q = new THREE.Quaternion(); this.E = new THREE.Euler(); this.V = new THREE.Vector3(); this.S = new THREE.Vector3();
+  }
+  start(p, vel, groundAt) {
+    this.t = 0; this.p = p.clone(); this.groundAt = groundAt; this.g.visible = true;
+    for (let i = 0; i < this.NS; i++) { const o = i * 5; this.sp[o] = (Math.random() - 0.5) * 6; this.sp[o + 1] = Math.random() * 2; this.sp[o + 2] = (Math.random() - 0.5) * 6; this.sp[o + 3] = 1.5 + Math.random() * 2.5; this.sp[o + 4] = Math.random() * 0.6; }
+    for (let i = 0; i < this.NB; i++) {
+      const o = i * 12, a = Math.random() * 6.283, up = 4 + Math.random() * 14, out = 5 + Math.random() * 16;
+      this.db.set([p.x, p.y, p.z, Math.cos(a) * out + vel.x * 0.25, up, Math.sin(a) * out + vel.z * 0.25, Math.random() * 6, Math.random() * 6, Math.random() * 6, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, i < 3 ? 1 : 0], o);
+    }
+  }
+  /** a: 0..1 fade for the whole effect (used while rewinding) */
+  update(dt, a = 1) {
+    if (!this.g.visible) return;
+    this.t += dt; const t = this.t, p = this.p;
+    const fs = 2 + 15 * (1 - Math.exp(-t * 6));
+    this.fire.position.copy(p); this.fire.scale.setScalar(fs); this.fire.material.opacity = Math.max(0, 0.95 - t * 0.75) * a;
+    this.core.position.copy(p); this.core.scale.setScalar(fs * 0.55); this.core.material.opacity = Math.max(0, 1 - t * 3) * a;
+    this.smokeMat.opacity = Math.min(0.75, t * 3) * Math.max(0, 1 - Math.max(0, t - 3) / 3) * a;
+    for (let i = 0; i < this.NS; i++) {
+      const o = i * 5, k = Math.max(0, t - this.sp[o + 4]), s = k > 0 ? this.sp[o + 3] * (1 + k * 1.6) : 0.001;
+      this.smoke.setMatrixAt(i, this.M.compose(this.V.set(p.x + this.sp[o] * (1 + k), p.y + this.sp[o + 1] + k * 6, p.z + this.sp[o + 2] * (1 + k)), this.Q.identity(), this.S.set(s, s, s)));
+    }
+    for (let i = 0; i < this.NB; i++) {
+      const o = i * 12, d = this.db, gy = this.groundAt(d[o], d[o + 2]);
+      if (d[o + 1] > gy + 0.2 || d[o + 4] > 0) {
+        d[o + 4] -= 9.81 * dt; d[o] += d[o + 3] * dt; d[o + 1] += d[o + 4] * dt; d[o + 2] += d[o + 5] * dt;
+        d[o + 6] += d[o + 9] * dt; d[o + 8] += d[o + 10] * dt;
+        if (d[o + 1] < gy + 0.2) { d[o + 1] = gy + 0.2; d[o + 4] = Math.abs(d[o + 4]) > 3 ? -d[o + 4] * 0.3 : 0; d[o + 3] *= 0.5; d[o + 5] *= 0.5; }
+      }
+      const big = d[o + 11];
+      this.E.set(d[o + 6], d[o + 7], d[o + 8]);
+      this.debris.setMatrixAt(i, this.M.compose(this.V.set(d[o], d[o + 1], d[o + 2]), this.Q.setFromEuler(this.E), this.S.set(big ? 3.2 * a : 0.5 * a + 0.001, big ? 0.12 : 0.3 * a + 0.001, big ? 1.1 : 0.45 * a + 0.001)));
+    }
+    this.smoke.instanceMatrix.needsUpdate = true; this.debris.instanceMatrix.needsUpdate = true;
+    if (this.debris.instanceColor) this.debris.instanceColor.needsUpdate = true;
+  }
+  stop() { this.g.visible = false; }
+}
+
 export class FlyMode {
   constructor(camera, scene, world) {
     this.camera = camera; this.world = world;
     this.craft = makeUltralight(); this.craft.visible = false; scene.add(this.craft);
     this.pos = new THREE.Vector3(); this.yaw = 0; this.pitch = 0; this.roll = 0; this.speed = 45;
     this.camYaw = 0; this.camPitch = 0.28; this.cockpit = false; this.agl = 0; this.note = '';
+    this.state = 'fly'; this.hist = []; this.clock = 0; this.fx = new CrashFx(scene);
+    this.ray = new THREE.Raycaster(); this.shake = 0;
   }
   enter(x, z, yaw) {
     const e = this.world.ext;
@@ -70,12 +125,85 @@ export class FlyMode {
     // start one block back so the place you were looking at comes into view
     this.pos.x += Math.sin(yaw) * 220; this.pos.z += Math.cos(yaw) * 220;
     this.pos.x = clamp(this.pos.x, e.minX + 300, e.maxX - 300); this.pos.z = clamp(this.pos.z, e.minZ + 300, e.maxZ - 300);
-    this.pos.y = this.world.heightAt(this.pos.x, this.pos.z) + 55;
-    this.craft.visible = true; this.snap = true;
+    this.pos.y = this.safeHeight(this.pos.x, this.pos.z);
+    this.craft.visible = true; this.snap = true; this.state = 'fly'; this.hist = []; this.fx.stop();
   }
-  exit() { this.craft.visible = false; }
+  exit() { this.craft.visible = false; this.fx.stop(); this.state = 'fly'; }
+  /** a height well clear of everything around (x, z) */
+  safeHeight(x, z) { let h = 0; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) h = Math.max(h, this.world.heightAt(x + a * 60, z + b * 60)); return h + 45; }
   drag(dx, dy) { this.camYaw -= dx * 0.005; this.camPitch = clamp(this.camPitch + dy * 0.004, -0.3, 1.3); }
+
+  /** did the plane just fly into a building or the ground? */
+  collides(dt) {
+    const w = this.world, p = this.pos;
+    if (p.y < w.groundY(p.x, p.z) + 0.7) return true;
+    if (!w.bGroup.visible || w.heightAt(p.x, p.z) < p.y - 3) return false; // nothing tall around
+    const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw), rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+    const objs = w.bGroup.children;
+    // roof under the nose, the wing tips or the middle
+    for (const [a, b] of [[0, 0], [2.2, 0], [0, 5], [0, -5]]) {
+      const x = p.x + fx * a + rx * b, z = p.z + fz * a + rz * b;
+      if (!w.solidAt(x, z)) continue;
+      this.ray.set(this.V0.set(x, p.y + 0.6, z), this.D0.set(0, -1, 0)); this.ray.far = 1.4;
+      if (this.ray.intersectObjects(objs, false).length) return true;
+    }
+    // a wall straight ahead
+    const reach = this.speed * dt * 1.5 + 3;
+    let wall = false;
+    for (let s = 1; s <= reach; s += 2) if (w.solidAt(p.x + fx * s, p.z + fz * s)) { wall = true; break; }
+    if (wall) {
+      const cp = Math.cos(this.pitch);
+      this.ray.set(this.V0.copy(p), this.D0.set(fx * cp, Math.sin(this.pitch), fz * cp)); this.ray.far = reach;
+      if (this.ray.intersectObjects(objs, false).length) return true;
+    }
+    return false;
+  }
+  crash() {
+    this.state = 'crash'; this.crashT = 0; this.shake = 1.4; this.craft.visible = false;
+    const cp = Math.cos(this.pitch);
+    this.fx.start(this.pos, new THREE.Vector3(-Math.sin(this.yaw) * cp * this.speed, 0, -Math.cos(this.yaw) * cp * this.speed), ((cy) => (x, z) => (this.world.solidAt(x, z) ? Math.min(this.world.heightAt(x, z), cy) - 0.4 : this.world.groundY(x, z)))(this.pos.y));
+    this.camFrom = this.camera.position.clone();
+    this.onCrash && this.onCrash();
+  }
+  pose(h) { this.pos.set(h[0], h[1], h[2]); this.yaw = h[3]; this.pitch = h[4]; this.roll = h[5]; this.speed = h[6]; }
+
   update(dt, keys) {
+    this.clock += dt;
+    if (this.state === 'crash') {
+      // explosion plays, the camera holds and shakes, then the tape rewinds
+      this.crashT += dt; this.fx.update(dt);
+      this.shake *= Math.exp(-dt * 2.2);
+      this.camera.position.copy(this.camFrom).add(this.V0.set((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake));
+      this.camera.lookAt(this.fx.p);
+      this.note = 'CRASHED';
+      if (this.crashT > 2.8) {
+        this.state = 'rewind'; this.rwT = 0; this.rwFrom = this.hist.length - 1;
+        const tEnd = this.hist.length ? this.hist[this.hist.length - 1][7] : 0;
+        let k = this.hist.length - 1; while (k > 0 && this.hist[k][7] > tEnd - 5) k--;
+        this.rwTo = Math.max(0, k);
+        this.craft.visible = this.hist.length > 0; this.snap = true;
+        this.onRewind && this.onRewind();
+      }
+      return;
+    }
+    if (this.state === 'rewind') {
+      // play the last seconds backwards, fast, then fly on from there
+      this.rwT += dt; const k = Math.min(1, this.rwT / 1.7), e2 = k * k * (3 - 2 * k);
+      this.fx.update(dt * -0.5, Math.max(0, 1 - k * 2.5));
+      if (this.hist.length) this.pose(this.hist[Math.round(this.rwFrom + (this.rwTo - this.rwFrom) * e2)]);
+      this.note = 'REWIND';
+      this.placeCraft(0); this.placeCamera(dt * 2);
+      if (k >= 1) {
+        this.fx.stop();
+        if (this.hist.length) this.pose(this.hist[this.rwTo]);
+        this.hist.length = this.rwTo;
+        this.pos.y = Math.max(this.pos.y, this.safeHeight(this.pos.x, this.pos.z) - 10);
+        this.pitch = 0.12; this.roll = 0; this.speed = Math.max(this.speed, 45);
+        this.state = 'fly'; this.craft.visible = true; this.retryT = 2.5;
+        this.onResume && this.onResume();
+      }
+      return;
+    }
     const turn = down(keys, 'KeyA', 'ArrowLeft') - down(keys, 'KeyD', 'ArrowRight');
     const climb = down(keys, 'KeyW', 'ArrowUp') - down(keys, 'KeyS', 'ArrowDown');
     const thr = down(keys, 'KeyE', 'ShiftLeft', 'ShiftRight') - down(keys, 'KeyQ', 'ControlLeft');
@@ -95,17 +223,26 @@ export class FlyMode {
     const cp = Math.cos(this.pitch), fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     this.pos.x += fx * cp * this.speed * dt; this.pos.z += fz * cp * this.speed * dt; this.pos.y += Math.sin(this.pitch) * this.speed * dt;
     if (this.pos.x < e.minX + 20 || this.pos.x > e.maxX - 20 || this.pos.z < e.minZ + 20 || this.pos.z > e.maxZ - 20) { this.pos.x = clamp(this.pos.x, e.minX + 20, e.maxX - 20); this.pos.z = clamp(this.pos.z, e.minZ + 20, e.maxZ - 20); this.bumped = true; }
-    // obstacle clearance: a bit above the roofs, never into them
-    const ahead = this.speed * 1.6;
-    const roof = Math.max(this.world.heightAt(this.pos.x, this.pos.z), this.world.heightAt(this.pos.x + fx * ahead, this.pos.z + fz * ahead));
-    const floor = roof + 14;
-    if (this.pos.y < floor) { this.pos.y += (floor - this.pos.y) * ease(3, dt) + 0.02; if (this.pitch < 0.06) this.pitch += (0.06 - this.pitch) * ease(5, dt); }
     this.pos.y = Math.min(this.pos.y, 480);
     this.agl = this.pos.y - this.world.heightAt(this.pos.x, this.pos.z);
+    // no autopilot any more: fly into a building (or the ground) and you crash
+    if ((this.retryT = Math.max(0, (this.retryT || 0) - dt)) === 0 && this.collides(dt)) { this.crash(); return; }
+    // flight recorder for the rewind (last ~12 s)
+    this.hist.push([this.pos.x, this.pos.y, this.pos.z, this.yaw, this.pitch, this.roll, this.speed, this.clock]);
+    if (this.hist.length > 900) this.hist.splice(0, this.hist.length - 900);
+    const ahead = this.speed * 2.2, tall = Math.max(this.world.heightAt(this.pos.x + fx * ahead, this.pos.z + fz * ahead), this.world.heightAt(this.pos.x + fx * ahead * 0.5, this.pos.z + fz * ahead * 0.5));
+    if (!this.note && (tall > this.pos.y - 4 || this.agl < 18)) this.note = 'PULL UP!';
+    else if (!this.note && this.retryT > 0) this.note = 'try again';
+    this.placeCraft(dt); this.placeCamera(dt);
+  }
+  placeCraft(dt) {
     const c = this.craft;
     c.position.copy(this.pos);
     c.rotation.set(this.pitch, this.yaw, this.roll, 'YXZ');
     c.userData.prop.rotation.z += dt * 55;
+  }
+  placeCamera(dt) {
+    const c = this.craft, fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     if (this.cockpit) {
       this.camera.position.copy(this.pos).add(new THREE.Vector3(0, 1.02, -0.55).applyEuler(c.rotation));
       this.camera.rotation.set(this.pitch - 0.05 + (this.camPitch - 0.28) * -0.8, this.yaw + this.camYaw, this.roll, 'YXZ');
@@ -121,6 +258,8 @@ export class FlyMode {
   }
   get heading() { return ((-this.yaw * 180) / Math.PI % 360 + 360) % 360; }
 }
+FlyMode.prototype.V0 = new THREE.Vector3();
+FlyMode.prototype.D0 = new THREE.Vector3();
 
 // ---------------------------------------------------------------- boat
 function makeBoat() {

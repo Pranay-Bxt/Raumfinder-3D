@@ -25,6 +25,23 @@ export function shutter() {
   const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = 0.35; s.connect(g); g.connect(master); s.start();
   beep(1400, 0.05, 'square', 0.05, 0.07);
 }
+/** crash: a low thump plus a crackling noise burst */
+export function boom() {
+  if (!ctx) return;
+  const len = Math.floor(ctx.sampleRate * 1.6), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * 0.22)) * (0.6 + 0.4 * Math.sin(i * 0.002));
+  const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0.9; s.buffer = buf; s.connect(f); f.connect(g); g.connect(master); s.start();
+  beep(55, 0.9, 'sine', 0.5); beep(38, 1.2, 'triangle', 0.4, 0.05);
+}
+/** tape rewind: a fast rising warble */
+export function rewind() {
+  if (!ctx) return;
+  const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(1400, t + 1.6);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.7);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + 1.8);
+}
 /** motor hum: speed in m/s, power 0..1 */
 export function engine(on, speed = 0, power = 0) {
   if (!ctx) return;
