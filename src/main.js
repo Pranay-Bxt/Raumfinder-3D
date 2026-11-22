@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { MapControls } from 'three/addons/controls/MapControls.js';
 import { makeBoundary, keepInside } from './boundary.js';
 import { Leaves } from './leaves.js';
+import { AirRace } from './airrace.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -94,6 +95,8 @@ const fly = new FlyMode(camera, scene, world);
 fly.onCrash = () => { AUDIO.initAudio(); AUDIO.boom(); $('#crash').className = 'show crash'; };
 fly.onRewind = () => { AUDIO.rewind(); $('#crash').className = 'show rewind'; };
 fly.onResume = () => { $('#crash').className = ''; };
+const race = new AirRace(scene, world, fly, project, { panel: $('#racePanel'), msg: $('#raceMsg'), btn: $('#raceBtn') }, AUDIO);
+$('#raceBtn').onclick = () => { AUDIO.initAudio(); if (mode !== 'fly') setMode('fly'); race.start(); canvas.focus(); };
 const boat = new BoatMode(camera, scene, world, project(51.0562, 13.7425));
 const bike = new BikeMode(camera, scene, world, project(51.0537, 13.7372));
 const car = new CarMode(camera, scene, world, project(51.0537, 13.7372));
@@ -119,7 +122,7 @@ if (tramGame) {
 
 const HINTS = {
   explore: 'Drag to move · scroll to zoom · right-drag to turn · click a building for details · <kbd>/</kbd> search',
-  fly: 'Ultralight: <kbd>A</kbd> <kbd>D</kbd> bank · <kbd>W</kbd> <kbd>S</kbd> climb / descend · <kbd>E</kbd> <kbd>Q</kbd> throttle · <kbd>C</kbd> cockpit view · drag to look · <kbd>Esc</kbd> exit',
+  fly: '<kbd>G</kbd> air race · Ultralight: <kbd>A</kbd> <kbd>D</kbd> bank · <kbd>W</kbd> <kbd>S</kbd> climb / descend · <kbd>E</kbd> <kbd>Q</kbd> throttle · <kbd>C</kbd> cockpit view · drag to look · <kbd>Esc</kbd> exit',
   boat: 'Steamer: <kbd>W</kbd> <kbd>S</kbd> throttle · <kbd>A</kbd> <kbd>D</kbd> rudder · drag to look around · <kbd>R</kbd> back to the pier · <kbd>Esc</kbd> exit',
   penalty: '',
   tram: '',
@@ -139,7 +142,7 @@ function setMode(m) {
   const d = camera.getWorldDirection(new THREE.Vector3());
   const yaw = Math.atan2(-d.x, -d.z);
   if (mode === 'boat') boat.exit();
-  if (mode === 'fly') { fly.exit(); $('#crash').className = ''; }
+  if (mode === 'fly') { fly.exit(); $('#crash').className = ''; race.hide(); }
   if (mode === 'bike') bike.exit();
   if (mode === 'car') car.exit();
   if (mode === 'penalty') penalty.exit();
@@ -156,6 +159,7 @@ function setMode(m) {
   mode = m;
   controls.enabled = m === 'explore';
   if (m === 'fly') fly.enter(here[0], here[1], yaw);
+  $('#raceBtn').style.display = m === 'fly' ? '' : 'none';
   if (m === 'boat') boat.enter();
   if (m === 'bike') bike.enter(here[0], here[1]);
   if (m === 'car') car.enter(here[0], here[1]);
@@ -193,6 +197,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Enter' && photo.on) { photo.capture(); return; }
   if (e.code === 'KeyC' && mode === 'fly') { fly.cockpit = !fly.cockpit; fly.snap = true; return; }
   if (e.code === 'KeyC' && mode === 'car') { car.cockpit = !car.cockpit; car.snap = true; return; }
+  if (e.code === 'KeyG' && mode === 'fly') { AUDIO.initAudio(); race.toggle(); return; }
   if (e.code === 'KeyR' && mode === 'boat') { boat.reset(); boat.snap = true; return; }
   if (mode === 'penalty') {
     if (e.code === 'KeyR') { penalty.reset(); return; }
@@ -656,6 +661,7 @@ function frame() {
     near = clamp(camera.position.y * 0.03, 1, 30);
   } else if (mode === 'fly') {
     fly.update(dt, keys);
+    race.update(dt);
     focus.copy(fly.pos); range = Math.max(380, fly.pos.y * 3);
     near = 0.4;
     $('#hud').innerHTML = `<b>${Math.round(fly.speed * 3.6)}</b> km/h <span>·</span> <b>${Math.round(fly.agl)}</b> m above roofs <span>·</span> <b>${String(Math.round(fly.heading) % 360).padStart(3, '0')}°</b>${fly.note ? ` <span>· ${fly.note}</span>` : ''}`;
@@ -713,4 +719,4 @@ function frame() {
 progress(100, 'Ready');
 requestAnimationFrame(frame);
 setTimeout(() => { $('#load').style.opacity = 0; setTimeout(() => $('#load').remove(), 700); showHint(); }, 150);
-window.__dresden = { campus, people, leaves, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };
+window.__dresden = { campus, people, leaves, race, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };

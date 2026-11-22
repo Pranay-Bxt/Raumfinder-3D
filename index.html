@@ -193,6 +193,21 @@
   #campus .cp-note { color: var(--dim); font-size: 11px; margin: 0; padding: 6px 10px; } #campus .cp-note a { color: var(--acc); }
   @media (max-width: 900px) { #campus { left: 8px; right: 8px; width: auto; top: 78px; max-height: calc(100vh - 90px); } #campus .cp-main { grid-template-columns: 1fr; } #campus .cp-left { border-right: 0; border-bottom: 1px solid var(--line); } #campus .cp-grid { grid-auto-columns: calc((100% - 12px) / 3); } }
   @media (max-width: 1050px) { #brand small { display: none; } }
+  /* ---- air race ---- */
+  #raceBtn { position: fixed; top: 116px; left: 50%; transform: translateX(-50%); z-index: 5; font-size: 16px; padding: 7px 18px; box-shadow: 0 4px 18px rgba(0,0,0,.4); }
+  #racePanel { display: none; top: 116px; left: 50%; transform: translateX(-50%); padding: 7px 16px; white-space: nowrap; font-size: 15px; z-index: 5; }
+  #racePanel b { color: var(--acc); font-weight: 400; } #racePanel span { color: var(--dim); margin-left: 10px; } #racePanel .t { margin-left: 12px; font-size: 19px; color: #fff; }
+  #racePanel .k { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-size: 12px; }
+  #raceMsg { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); pointer-events: none; z-index: 8; text-align: center; display: none; text-shadow: 0 4px 0 #000, 0 0 20px rgba(0,0,0,.7); }
+  #raceMsg.show { display: block; }
+  #raceMsg.count { font-size: min(22vw, 170px); color: var(--acc); animation: pop .9s ease-out; }
+  #raceMsg.go { font-size: min(20vw, 150px); color: #7dff9a; animation: pop .9s ease-out; }
+  #raceMsg.cp { font-size: 40px; color: var(--acc); top: 30%; animation: pop .5s ease-out; }
+  #raceMsg.finish { background: var(--bg); border: 2px solid var(--acc); border-radius: 16px; padding: 18px 34px; text-shadow: none; animation: pop .5s ease-out; }
+  #raceMsg.finish em { display: block; font-style: normal; color: var(--acc); font-size: 54px; letter-spacing: .12em; }
+  #raceMsg.finish strong { display: block; font-weight: 400; font-size: 72px; color: #fff; line-height: 1; }
+  #raceMsg.finish small { display: block; font-size: 22px; margin-top: 6px; color: var(--dim); }
+  @keyframes pop { from { transform: translate(-50%, -50%) scale(1.6); opacity: 0; } 30% { opacity: 1; } to { transform: translate(-50%, -50%) scale(1); } }
   /* ---- plane crash / rewind overlay ---- */
   #crash { position: fixed; inset: 0; pointer-events: none; z-index: 9; display: none; align-items: center; justify-content: center; }
   #crash.show { display: flex; }
@@ -248,6 +263,9 @@
 </div>
 
 <div id="hud" class="panel"></div>
+<button id="raceBtn" class="chip on" style="display:none" title="Fly through 10 checkpoints over Dresden as fast as you can (G)">&#127937; Air race (G)</button>
+<div id="racePanel" class="panel"></div>
+<div id="raceMsg"></div>
 <div id="crash"><b class="c1">CRASH!</b><b class="c2">&#9664;&#9664; REWIND</b><i class="scan"></i></div>
 <div id="hint"></div>
 
