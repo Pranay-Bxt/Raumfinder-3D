@@ -3,6 +3,7 @@ import { MapControls } from 'three/addons/controls/MapControls.js';
 import { makeBoundary, keepInside } from './boundary.js';
 import { Leaves } from './leaves.js';
 import { AirRace } from './airrace.js';
+import { buildCourt, Hoops } from './basketball.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -60,6 +61,9 @@ progress(55, 'Building the city…');
 await nextFrame();
 const world = buildWorld(data, renderer);
 scene.add(world.group);
+// basketball court on the nearest free spot to the start of Wundtstrasse (built before the leaves: it clears trees)
+const court = buildCourt(scene, world, [262, 2470]);
+data.labels.push({ n: 'Basketball court', k: 'poi', x: court.cx, z: court.cz, p: 1, hoops: true });
 // the digital wall around the map: you can see past it, not go past it
 const boundary = makeBoundary(meta.ext);
 scene.add(boundary.mesh);
@@ -101,6 +105,7 @@ const boat = new BoatMode(camera, scene, world, project(51.0562, 13.7425));
 const bike = new BikeMode(camera, scene, world, project(51.0537, 13.7372));
 const car = new CarMode(camera, scene, world, project(51.0537, 13.7372));
 const penalty = new Penalty(scene, camera, canvas);
+const hoops = new Hoops(scene, camera, canvas, court, AUDIO);
 let mode = 'explore';
 const keys = new Set();
 const photo = new PhotoCam({
@@ -125,6 +130,7 @@ const HINTS = {
   fly: '<kbd>G</kbd> air race · Ultralight: <kbd>A</kbd> <kbd>D</kbd> bank · <kbd>W</kbd> <kbd>S</kbd> climb / descend · <kbd>E</kbd> <kbd>Q</kbd> throttle · <kbd>C</kbd> cockpit view · drag to look · <kbd>Esc</kbd> exit',
   boat: 'Steamer: <kbd>W</kbd> <kbd>S</kbd> throttle · <kbd>A</kbd> <kbd>D</kbd> rudder · drag to look around · <kbd>R</kbd> back to the pier · <kbd>Esc</kbd> exit',
   penalty: '',
+  hoops: '',
   tram: '',
   car: 'Car: <kbd>W</kbd> gas · <kbd>S</kbd> brake / reverse · <kbd>A</kbd> <kbd>D</kbd> steer · <kbd>Shift</kbd> boost · <kbd>C</kbd> driver view · <kbd>P</kbd> photo · drag to look · <kbd>Esc</kbd> exit',
   bike: 'Bicycle: <kbd>W</kbd> pedal · <kbd>S</kbd> brake · <kbd>A</kbd> <kbd>D</kbd> steer · <kbd>Shift</kbd> sprint · <kbd>F</kbd> camera viewfinder · <kbd>P</kbd> quick photo · drag to look · <kbd>Esc</kbd> exit',
@@ -138,7 +144,7 @@ function setMode(m) {
   if (m === mode) return;
   tween = null;
   // where the current mode "is", so the next one starts there
-  const here = mode === 'explore' ? [controls.target.x, controls.target.z] : mode === 'fly' ? [fly.pos.x, fly.pos.z] : mode === 'boat' ? [boat.x, boat.z] : mode === 'penalty' ? [penalty.p.cx, penalty.p.cz] : mode === 'tram' ? (tramGame.active ? (({ x, z }) => [x, z])(tramGame.route.at(tramGame.s)) : [camera.position.x, camera.position.z]) : mode === 'car' ? [car.x, car.z] : [bike.x, bike.z];
+  const here = mode === 'explore' ? [controls.target.x, controls.target.z] : mode === 'fly' ? [fly.pos.x, fly.pos.z] : mode === 'boat' ? [boat.x, boat.z] : mode === 'penalty' ? [penalty.p.cx, penalty.p.cz] : mode === 'hoops' ? [court.cx, court.cz] : mode === 'tram' ? (tramGame.active ? (({ x, z }) => [x, z])(tramGame.route.at(tramGame.s)) : [camera.position.x, camera.position.z]) : mode === 'car' ? [car.x, car.z] : [bike.x, bike.z];
   const d = camera.getWorldDirection(new THREE.Vector3());
   const yaw = Math.atan2(-d.x, -d.z);
   if (mode === 'boat') boat.exit();
@@ -146,6 +152,7 @@ function setMode(m) {
   if (mode === 'bike') bike.exit();
   if (mode === 'car') car.exit();
   if (mode === 'penalty') penalty.exit();
+  if (mode === 'hoops') hoops.exit();
   if (mode === 'tram') { tramGame.exit(); tramNet.setAmbientVisible(true); tramNet.setLineVisible($('[data-layer=tramline]').checked); camera.up.set(0, 1, 0); }
   photo.setOn(false);
   if (campus && campus.isOpen && m !== 'explore') campus.close();
@@ -164,6 +171,7 @@ function setMode(m) {
   if (m === 'bike') bike.enter(here[0], here[1]);
   if (m === 'car') car.enter(here[0], here[1]);
   if (m === 'penalty') penalty.start(nextPitch);
+  if (m === 'hoops') { hoops.start(); AUDIO.initAudio(); }
   if (m === 'tram') {
     // show the route menu, looking along line 11 at Zellescher Weg
     tramNet.setAmbientVisible(false); tramGame.showMenu(true);
@@ -172,9 +180,9 @@ function setMode(m) {
     AUDIO.initAudio();
   }
   $$('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
-  $('#hud').style.display = m === 'explore' || m === 'penalty' || m === 'tram' ? 'none' : 'block';
-  $('#left').style.display = $('#tools').style.display = m === 'penalty' || m === 'tram' ? 'none' : '';
-  if (m === 'penalty' || m === 'tram') closePops();
+  $('#hud').style.display = m === 'explore' || m === 'penalty' || m === 'hoops' || m === 'tram' ? 'none' : 'block';
+  $('#left').style.display = $('#tools').style.display = m === 'penalty' || m === 'hoops' || m === 'tram' ? 'none' : '';
+  if (m === 'penalty' || m === 'hoops' || m === 'tram') closePops();
   clearSelection();
   showHint();
   canvas.focus();
@@ -192,13 +200,18 @@ addEventListener('keydown', (e) => {
     if (e.code === 'KeyH') { tramGame.bell(); return; }
     if (e.code === 'KeyC') { tramGame.toggleCam(); return; }
   }
-  if (e.code === 'KeyP' && mode !== 'penalty' && !(mode === 'tram' && !tramGame.active)) { photo.capture(); return; }
+  if (e.code === 'KeyP' && mode !== 'penalty' && mode !== 'hoops' && !(mode === 'tram' && !tramGame.active)) { photo.capture(); return; }
   if (e.code === 'KeyF' && mode === 'bike') { photo.toggle(); return; }
   if (e.code === 'Enter' && photo.on) { photo.capture(); return; }
   if (e.code === 'KeyC' && mode === 'fly') { fly.cockpit = !fly.cockpit; fly.snap = true; return; }
   if (e.code === 'KeyC' && mode === 'car') { car.cockpit = !car.cockpit; car.snap = true; return; }
   if (e.code === 'KeyG' && mode === 'fly') { AUDIO.initAudio(); race.toggle(); return; }
   if (e.code === 'KeyR' && mode === 'boat') { boat.reset(); boat.snap = true; return; }
+  if (mode === 'hoops') {
+    if (e.code === 'KeyR') { hoops.reset(); return; }
+    if (e.code === 'Space') { if (!e.repeat) hoops.press(); e.preventDefault(); return; }
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') { hoops.nudge(e.code === 'ArrowLeft' ? 0.02 : -0.02); e.preventDefault(); return; }
+  }
   if (mode === 'penalty') {
     if (e.code === 'KeyR') { penalty.reset(); return; }
     if (e.code === 'Space') { if (!e.repeat) penalty.press(); e.preventDefault(); return; }
@@ -210,15 +223,16 @@ addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (mode !== 'explore' && (e.code.startsWith('Arrow') || e.code === 'Space')) e.preventDefault();
 });
-addEventListener('keyup', (e) => { keys.delete(e.code); if (mode === 'penalty' && e.code === 'Space') penalty.release(); });
+addEventListener('keyup', (e) => { keys.delete(e.code); if (mode === 'penalty' && e.code === 'Space') penalty.release(); if (mode === 'hoops' && e.code === 'Space') hoops.release(); });
 addEventListener('blur', () => keys.clear());
 
 // pointer: drag-look in fly/boat/bike, click-to-inspect in explore
 let down = null;
 const setDrag = (v) => { boat.dragging = fly.dragging = bike.dragging = car.dragging = v; };
-canvas.addEventListener('pointerdown', (e) => { down = { moved: 0 }; setDrag(true); if (mode === 'penalty' && e.button === 0) penalty.press(); });
+canvas.addEventListener('pointerdown', (e) => { down = { moved: 0 }; setDrag(true); if (mode === 'penalty' && e.button === 0) penalty.press(); if (mode === 'hoops' && e.button === 0) hoops.press(); });
 addEventListener('pointermove', (e) => {
   if (mode === 'penalty') penalty.aim(e.clientX, e.clientY);
+  if (mode === 'hoops') hoops.aimAt(e.clientX);
   if (!down) return;
   down.moved += Math.abs(e.movementX) + Math.abs(e.movementY);
   if (mode === 'fly') fly.drag(e.movementX, e.movementY);
@@ -230,6 +244,7 @@ addEventListener('pointermove', (e) => {
 addEventListener('pointerup', (e) => {
   setDrag(false);
   if (mode === 'penalty') penalty.release();
+  if (mode === 'hoops') hoops.release();
   if (down && down.moved < 6 && photo.on && e.target === canvas) photo.capture();
   if (down && down.moved < 6 && mode === 'explore' && e.target === canvas) pick(e.clientX, e.clientY);
   down = null;
@@ -259,7 +274,7 @@ function stepTween(dt) {
 // ---------- labels, search, presets ----------
 let campus = null, floorStack = new FloorStack(scene), indoorView = new IndoorView(scene), lastCampus = null;
 if (campusData) for (const b of campusData.buildings) { const [x, z] = project(b.points[0][0], b.points[0][1]); data.labels.push({ n: b.name.length > 30 ? b.name.slice(0, 29) + '…' : b.name, k: 'campus', id: b.id, x, z, p: 0 }); }
-const labels = new Labels($('#labels'), data.labels, camera, (l) => { if (l.k === 'campus' && campus) campus.open(l.id); else flyTo(l.x, l.z, l.k === 'district' ? 900 : 380); });
+const labels = new Labels($('#labels'), data.labels, camera, (l) => { if (l.hoops) { setMode('hoops'); return; } if (l.k === 'campus' && campus) campus.open(l.id); else flyTo(l.x, l.z, l.k === 'district' ? 900 : 380); });
 const pipFlat = (x, z, r) => { let ins = false; for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { const ax = r[i], az = r[i + 1], bx = r[j], bz = r[j + 1]; if ((az > z) !== (bz > z) && x < ((bx - ax) * (z - az)) / (bz - az) + ax) ins = !ins; } return ins; };
 /** the 3D model(s) of a campus building: official LoD2 models first, then simple OpenStreetMap footprints */
 function campusRows(b) {
@@ -403,6 +418,7 @@ for (const [name, lat, lon, dist] of PRESETS) {
   };
   $('#presets').appendChild(b);
 }
+{ const b = document.createElement('button'); b.className = 'chip on'; b.textContent = 'Basketball (play)'; b.onclick = () => { closePops(); setMode('hoops'); }; $('#presets').appendChild(b); }
 const KIND_NAME = { poi: 'Landmark', district: 'District', station: 'Station', stop: 'Tram stop', street: 'Street', campus: 'TU Dresden building', room: 'Room' };
 const search = $('#search'), results = $('#results');
 let hits = [], sel = 0;
@@ -449,6 +465,8 @@ function pick(cx, cy) {
   const pitchHit = ray.intersectObjects(sportsWorld.pitches, false)[0];
   if (indoorView.active) { const rec = indoorView.pick(ray); if (rec) { indoorView.focus(rec[1] || rec[2]); showRoomInfo(rec); return; } }
   clearSelection();
+  const courtHit = ray.intersectObject(court.surface, false)[0];
+  if (courtHit && (!hit || courtHit.distance < hit.distance) && (!pitchHit || courtHit.distance < pitchHit.distance)) { setMode('hoops'); return; }
   if (pitchHit && (!hit || pitchHit.distance < hit.distance)) { nextPitch = pitchHit.object.userData.pitch; setMode('penalty'); return; }
   if (!hit) return;
   const { idxs, triStart: ts, totalH, src: hitSrc } = hit.object.userData;
@@ -676,6 +694,9 @@ function frame() {
       focus.set(a.x, 0, a.z);
     } else focus.set(camera.position.x, 0, camera.position.z);
     range = 260; near = 0.12;
+  } else if (mode === 'hoops') {
+    hoops.update(dt);
+    focus.set(court.cx, 0, court.cz); range = 120; near = 0.1;
   } else if (mode === 'penalty') {
     penalty.update(dt);
     focus.set(penalty.p.cx, 0, penalty.p.cz); range = 140; near = 0.1;
@@ -690,12 +711,12 @@ function frame() {
   }
   fitViewport();
   labels.near = mode === 'bike' || mode === 'car';
-  labels.setEnabled(mode !== 'penalty' && mode !== 'tram' && $('[data-layer=labels]').checked);
+  labels.setEnabled(mode !== 'penalty' && mode !== 'hoops' && mode !== 'tram' && $('[data-layer=labels]').checked);
   setTramNight(env.nightF);
   if (tramNet) tramNet.update(dt, env.nightF);
   people.update(dt, focus.x, focus.z, camera.position.y);
   leaves.update(dt, focus.x, focus.z, camera.position.y);
-  const fov = mode === 'bike' ? (photo.on ? photo.fov : 70) : mode === 'fly' ? 58 : mode === 'car' ? (car.cockpit ? 68 : 60) : mode === 'penalty' ? 46 : mode === 'tram' ? (tramGame.cabCam ? 62 : 52) : 50;
+  const fov = mode === 'bike' ? (photo.on ? photo.fov : 70) : mode === 'fly' ? 58 : mode === 'car' ? (car.cockpit ? 68 : 60) : mode === 'penalty' ? 46 : mode === 'hoops' ? 55 : mode === 'tram' ? (tramGame.cabCam ? 62 : 52) : 50;
   if (camera.fov !== fov) camera.fov = fov;
   camera.near = near; camera.far = mode === 'bike' ? 25000 : 70000;
   // keep the 3D building visible beside the campus panel by shifting the view left
@@ -719,4 +740,4 @@ function frame() {
 progress(100, 'Ready');
 requestAnimationFrame(frame);
 setTimeout(() => { $('#load').style.opacity = 0; setTimeout(() => $('#load').remove(), 700); showHint(); }, 150);
-window.__dresden = { campus, people, leaves, race, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };
+window.__dresden = { campus, people, leaves, race, hoops, court, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };

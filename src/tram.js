@@ -144,7 +144,7 @@ export class TramRoute {
     for (let i = 0; i < n; i++) { this.xs[i] = flat[i * 2]; this.zs[i] = flat[i * 2 + 1]; if (i) this.cum[i] = this.cum[i - 1] + Math.hypot(this.xs[i] - this.xs[i - 1], this.zs[i] - this.zs[i - 1]); }
     this.L = this.cum[n - 1];
     this.stops = stops;
-    // legal speed from curve radius, in 5 km/h steps (max 50 km/h, min 15)
+    // legal speed from curve radius, in 5 km/h steps (max 70 km/h, min 20)
     const step = 5, m = Math.floor(this.L / step) + 2;
     this.lim = new Float32Array(m);
     const p = {}, q = {};
@@ -152,8 +152,8 @@ export class TramRoute {
       const s = k * step, h1 = this.at(s - 14, p), a1 = Math.atan2(h1.tz, h1.tx), h2 = this.at(s + 14, q), a2 = Math.atan2(h2.tz, h2.tx);
       let d = Math.abs(a2 - a1); if (d > Math.PI) d = Math.PI * 2 - d;
       const R = d > 1e-3 ? 28 / d : 1e9;
-      const kmh = Math.floor(Math.min(50, Math.sqrt(1.25 * R) * 3.6) / 5) * 5;
-      this.lim[k] = Math.max(15, kmh) / 3.6;
+      const kmh = Math.floor(Math.min(70, Math.sqrt(2.0 * R) * 3.6) / 5) * 5;
+      this.lim[k] = Math.max(20, kmh) / 3.6;
     }
   }
   at(s, o = {}) {
@@ -254,9 +254,9 @@ export class TramNetwork {
       if (a.dwell > 0) { a.dwell -= dt; a.v = 0; }
       else {
         const vmax = Math.min(r.limitAt(a.s + 20), r.limitAt(a.s));
-        const vStop = Math.sqrt(Math.max(0, 2 * 0.9 * Math.max(0, dist - 0.3)));
+        const vStop = Math.sqrt(Math.max(0, 2 * 1.3 * Math.max(0, dist - 0.3)));
         const want = Math.min(vmax, vStop);
-        a.v += Math.max(-1.2 * dt, Math.min(1.0 * dt, want - a.v));
+        a.v += Math.max(-1.6 * dt, Math.min(1.5 * dt, want - a.v));
         a.s += a.v * dt;
         if (dist < 0.6 && a.v < 0.4) { a.v = 0; a.dwell = 10 + Math.random() * 12; a.next++; }
       }
@@ -318,7 +318,7 @@ export class TramGame {
     this.hardBrakeT = 0; this.overT = 0; this.overCool = 0;
     this.stats = { acc: [], punct: [], speeding: 0, hard: 0, missed: 0, left: 0, carried: 0, served: 1, over: 0 };
     this.t0s = this.trip[0].s;
-    this.exp = this.trip.map((st, i) => (st.s - this.t0s) / 10 + i * 15);
+    this.exp = this.trip.map((st, i) => (st.s - this.t0s) / 14 + i * 15); // timetable for the faster tram
     this.tram.setDestination(def.dest);
     this.tram.group.visible = true; this.tram.setDoors(0); this.tram.setPose(route, this.s);
     this.active = true; this.cabCam = true; this.lookYaw = this.lookPitch = 0;
@@ -385,8 +385,8 @@ export class TramGame {
     this.brk += (bTarget - this.brk) * Math.min(1, dt * (bTarget ? 4 : 7));
     const locked = this.door > 0.02 || this.phase === 'dwell' || this.finished;
     let a = 0;
-    if (!locked) a += this.pow * 1.35 * Math.max(0.14, 1 - this.v / 18);
-    a -= this.brk * (emerg ? 2.9 : 1.35);
+    if (!locked) a += this.pow * 2.0 * Math.max(0.14, 1 - this.v / 24);
+    a -= this.brk * (emerg ? 3.4 : 1.9);
     const drag = this.v > 0.02 ? 0.03 + 0.0007 * this.v * this.v : 0;
     const prev = this.v;
     this.v = Math.max(0, this.v + (a - drag) * dt);
@@ -394,7 +394,7 @@ export class TramGame {
     this.s += this.v * dt;
     const decel = (prev - this.v) / Math.max(dt, 1e-3);
     this.hardBrakeT -= dt;
-    if (decel > 1.9 && !emerg && this.hardBrakeT <= 0 && this.v > 1) { this.stats.hard++; this.hardBrakeT = 3; this.toast('Hard braking!', 'bad'); }
+    if (decel > 2.5 && !emerg && this.hardBrakeT <= 0 && this.v > 1) { this.stats.hard++; this.hardBrakeT = 3; this.toast('Hard braking!', 'bad'); }
     if (emerg && this.v > 1 && this.hardBrakeT <= 0) { this.stats.hard++; this.hardBrakeT = 3; }
     // ---- speed limit
     const lim = r.limitAt(this.s), kmh = this.v * 3.6, limK = Math.round(lim * 3.6);

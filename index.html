@@ -193,6 +193,19 @@
   #campus .cp-note { color: var(--dim); font-size: 11px; margin: 0; padding: 6px 10px; } #campus .cp-note a { color: var(--acc); }
   @media (max-width: 900px) { #campus { left: 8px; right: 8px; width: auto; top: 78px; max-height: calc(100vh - 90px); } #campus .cp-main { grid-template-columns: 1fr; } #campus .cp-left { border-right: 0; border-bottom: 1px solid var(--line); } #campus .cp-grid { grid-auto-columns: calc((100% - 12px) / 3); } }
   @media (max-width: 1050px) { #brand small { display: none; } }
+  /* ---- basketball ---- */
+  #hp { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #hp .hp-top { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 8px 20px; display: flex; gap: 16px; align-items: center; white-space: nowrap; font-size: 16px; }
+  #hp .hp-title { color: var(--acc); font-weight: 400; } #hp .hp-pts { color: #fff; font-size: 20px; } #hp .hp-best { color: var(--dim); }
+  #hp .hp-spot { position: absolute; top: 124px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 22px; text-shadow: 0 2px 6px #000; }
+  #hp .hp-msg { position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); font-size: 64px; text-align: center; text-shadow: 0 4px 0 #000, 0 0 18px rgba(0,0,0,.6); }
+  #hp .hp-msg.good { color: var(--acc); } #hp .hp-msg.bad { color: #ff8a5c; }
+  #hp .hp-msg.end { font-size: 24px; color: var(--dim); background: var(--bg); border: 2px solid var(--acc); border-radius: 16px; padding: 16px 30px; text-shadow: none; }
+  #hp .hp-msg.end em { display: block; font-style: normal; color: var(--acc); font-size: 64px; } #hp .hp-msg.end small { display: block; }
+  #hp .hp-power { position: absolute; bottom: 128px; left: 50%; transform: translateX(-50%); width: min(380px, 72vw); height: 16px; border-radius: 999px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.4); transition: opacity .3s; }
+  #hp .hp-power u { position: absolute; top: 0; bottom: 0; background: rgba(76,208,125,.85); border-radius: 4px; }
+  #hp .hp-power i { position: absolute; top: -5px; width: 4px; height: 26px; margin-left: -2px; background: #fff; border-radius: 2px; box-shadow: 0 0 6px #000; }
+  #hp .hp-help { position: absolute; bottom: 98px; left: 50%; transform: translateX(-50%); font-size: 14px; text-shadow: 0 1px 4px #000; white-space: nowrap; }
   /* ---- air race ---- */
   #raceBtn { position: fixed; top: 116px; left: 50%; transform: translateX(-50%); z-index: 5; font-size: 16px; padding: 7px 18px; box-shadow: 0 4px 18px rgba(0,0,0,.4); }
   #racePanel { display: none; top: 116px; left: 50%; transform: translateX(-50%); padding: 7px 16px; white-space: nowrap; font-size: 15px; z-index: 5; }
