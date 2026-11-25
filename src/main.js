@@ -4,10 +4,12 @@ import { makeBoundary, keepInside } from './boundary.js';
 import { Leaves } from './leaves.js';
 import { AirRace } from './airrace.js';
 import { buildCourt, Hoops } from './basketball.js';
+import { styleCampus } from './campusstyle.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { project, unproject } from './proj.js';
 import { buildWorld } from './world.js';
 import { Environment, sunPosition, nowBerlin, berlinToUtc } from './env.js';
@@ -85,6 +87,13 @@ const env = new Environment(scene, camera, world, meta);
 // post-processing: bloom for sun glints, lit windows and street lights
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
+// guard: a single NaN/Inf pixel (e.g. from a paper-thin building triangle) would be smeared over the whole screen by
+// the bloom blur and turn the view black, so replace any such pixel before the bloom
+composer.addPass(new ShaderPass({
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main() { vec4 c = texture2D(tDiffuse, vUv); if (any(isnan(c)) || any(isinf(c))) c = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = clamp(c, 0.0, 100.0); }',
+}));
 const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.3, 0.7, 1.4);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
@@ -398,6 +407,8 @@ function addCampusButton(ring) {
   r.firstChild.onclick = () => campus.open(cb.id);
   $('#info').appendChild(r);
 }
+// TU Dresden buildings: navy roofs + neon underglow
+const campusStyle = campusData ? styleCampus(scene, world, data, campusData, indoorData) : null;
 if (campusData) {
   campus = new Campus(campusData, { show3D: showCampusBuilding, floor: showCampusFloor, room: (b, lvl, ref) => focusRoom(ref), noRoom: noRoomInfo, orient: orientCampus, closed: () => clearSelection() }, indoorData, roomIndex);
   $('#campusBtn').onclick = () => campus.toggle();
@@ -695,7 +706,7 @@ function frame() {
     } else focus.set(camera.position.x, 0, camera.position.z);
     range = 260; near = 0.12;
   } else if (mode === 'hoops') {
-    hoops.update(dt);
+    hoops.update(dt, env.nightF);
     focus.set(court.cx, 0, court.cz); range = 120; near = 0.1;
   } else if (mode === 'penalty') {
     penalty.update(dt);
@@ -728,6 +739,8 @@ function frame() {
   if (mode === 'boat' && boat.bumped) { boundary.hit(boat.x, 6, boat.z); boat.bumped = false; }
   if (mode === 'bike' && bike.bumped) { boundary.hit(bike.x, 2, bike.z); bike.bumped = false; }
   if (mode === 'car' && car.bumped) { boundary.hit(car.x, 2, car.z); car.bumped = false; }
+  if (campusStyle) campusStyle.update(time, env.nightF);
+  court.setNight(env.nightF);
   env.update(time, focus, range, vh);
   labels.update();
   updateInfo();
@@ -740,4 +753,4 @@ function frame() {
 progress(100, 'Ready');
 requestAnimationFrame(frame);
 setTimeout(() => { $('#load').style.opacity = 0; setTimeout(() => $('#load').remove(), 700); showHint(); }, 150);
-window.__dresden = { campus, people, leaves, race, hoops, court, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };
+window.__dresden = { campusStyle, campus, people, leaves, race, hoops, court, tramNet, tramGame, photo, penalty, sportsWorld, startPenalty: (i = 0) => { nextPitch = sportsWorld.pitches[i].userData.pitch; setMode('penalty'); }, scene, camera, controls, world, env, fly, boat, bike, car, setMode, setSeason, flyTo, renderer, keys };

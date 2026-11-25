@@ -86,8 +86,17 @@ export function buildCourt(scene, world, near) {
     const np = []; // net: 12 strings tapering down
     for (let k = 0; k < 12; k++) { const t = (k / 12) * Math.PI * 2; const a = at(RIM_U, 0, RIM_H); np.push(a.x + Math.cos(t) * RIM_R, a.y, a.z + Math.sin(t) * RIM_R, a.x + Math.cos(t + 0.5) * RIM_R * 0.6, a.y - 0.42, a.z + Math.sin(t + 0.5) * RIM_R * 0.6); }
     const ng = new THREE.BufferGeometry(); ng.setAttribute('position', new THREE.Float32BufferAttribute(np, 3)); h.add(new THREE.LineSegments(ng, netM));
-    c.hoops.push({ s, rim: at(RIM_U, 0, RIM_H), boardU: BOARD_U });
+    c.hoops.push({ s, rim: at(RIM_U, 0, RIM_H), boardU: BOARD_U, net: { geo: ng, rest: Float32Array.from(np) } });
   }
+  // floodlights on four masts: switch on at dusk and light the court
+  const lampMat = new THREE.MeshStandardMaterial({ color: '#fffbe8', emissive: '#fff3c4', emissiveIntensity: 0.2 });
+  for (const [su, sv] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const mu = su * (L / 2 - 3), mv = sv * (Wd / 2 + 1.6), base = c.W(mu, mv, 0), H8 = 8.5;
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, H8, 8), pole); mast.position.copy(base).add(new THREE.Vector3(0, H8 / 2, 0)); mast.castShadow = true; g.add(mast);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, 0.5), lampMat); head.position.copy(c.W(mu, mv - sv * 0.45, H8)); head.lookAt(c.W(mu * 0.4, 0, 0)); g.add(head);
+  }
+  const surfMat = surf.material;
+  c.setNight = (n) => { lampMat.emissiveIntensity = 0.2 + n * 6; surfMat.emissive.set('#fff4d6'); surfMat.emissiveIntensity = n * 0.16; };
   return c;
 }
 
@@ -105,11 +114,27 @@ export class Hoops {
     this.guide = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 3).rotateX(-Math.PI / 2).translate(0, 0, -1.5), new THREE.MeshBasicMaterial({ color: '#FFD400', transparent: true, opacity: 0.7 }));
     this.guide.visible = false; scene.add(this.guide);
     this.hud = document.createElement('div'); this.hud.id = 'hp';
-    this.hud.innerHTML = `<div class="hp-top"><b class="hp-title">Basketball · Wundtstraße</b><span class="hp-shot"></span><span class="hp-pts"></span><span class="hp-best"></span></div><div class="hp-spot"></div><div class="hp-msg"></div><div class="hp-power"><u></u><i></i></div><div class="hp-help">Move the mouse to aim · hold the mouse button or <kbd>Space</kbd>, let go in the green zone · <kbd>R</kbd> restart · <kbd>Esc</kbd> exit</div>`;
+    this.hud.innerHTML = `<div class="hp-top"><b class="hp-title">Basketball · Wundtstraße</b><span class="hp-shot"></span><span class="hp-pts"></span><span class="hp-fire"></span><span class="hp-best"></span></div><div class="hp-clock"></div><div class="hp-spot"></div><div class="hp-msg"></div><div class="hp-power"><u></u><i></i></div><div class="hp-help">Move the mouse to aim · hold the mouse button or <kbd>Space</kbd>, let go in the green zone · <kbd>R</kbd> restart · <kbd>Esc</kbd> exit</div>`;
     document.body.appendChild(this.hud);
     this.q = (s) => this.hud.querySelector(s);
     try { this.best = +localStorage.getItem(BEST_KEY) || 0; } catch { this.best = 0; }
     this.hoop = court.hoops[0];
+    // ball trail (white, or flames when on fire)
+    this.NT = 22; this.trailPts = [];
+    this.trailMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.trail = new THREE.InstancedMesh(new THREE.SphereGeometry(BALL_R, 10, 8), this.trailMat, this.NT); this.trail.frustumCulled = false; this.trail.visible = false; scene.add(this.trail);
+    this.M = new THREE.Matrix4(); this.Q = new THREE.Quaternion(); this.S = new THREE.Vector3(); this.V = new THREE.Vector3();
+    // hands holding the ball (forearms with yellow wristbands)
+    const skin = new THREE.MeshStandardMaterial({ color: '#e0b08a', roughness: 0.8 }), band = new THREE.MeshStandardMaterial({ color: '#FFD400', roughness: 0.6 });
+    this.hands = new THREE.Group(); this.hands.visible = false; scene.add(this.hands);
+    this.arms = [-1, 1].map((sd) => {
+      const a = new THREE.Group(); this.hands.add(a);
+      const fore = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.26).translate(0, 0, 0.13), skin); a.add(fore);
+      const wrist = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, 0.05).translate(0, 0, 0.05), band); a.add(wrist);
+      const palm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.025, 0.09).translate(0, 0, -0.03), skin); a.add(palm);
+      a.userData.side = sd; return a;
+    });
+    this.streak = 0; this.onFire = false; this.bestStreak = 0; this.netKick = 0; this.netAge = 9;
   }
   /** court frame relative to the hoop we shoot at: d = distance from the rim, a = angle */
   spotPos(d, adeg) {
@@ -117,13 +142,15 @@ export class Hoops {
     return c.W(uRim - s * Math.cos(a) * d, Math.sin(a) * d, 0);
   }
   start() { this.ball.visible = true; this.hud.style.display = 'block'; this.reset(); }
-  exit() { this.ball.visible = false; this.guide.visible = false; this.hud.style.display = 'none'; }
-  reset() { this.i = 0; this.points = 0; this.made = 0; this.newShot(); }
+  exit() { this.ball.visible = false; this.guide.visible = false; this.trail.visible = false; this.hands.visible = false; this.hud.style.display = 'none'; }
+  reset() { this.i = 0; this.points = 0; this.made = 0; this.streak = 0; this.bestStreak = 0; this.setFire(false); this.newShot(); }
+  setFire(on) { this.onFire = on; this.ball.material.emissive.set(on ? '#ff5a00' : '#000000'); this.trailMat.color.set(on ? '#ff7a18' : '#ffffff'); this.trailMat.opacity = on ? 0.75 : 0.35; this.q('.hp-fire').textContent = on ? 'ON FIRE +1' : this.streak >= 2 ? 'streak ' + this.streak : ''; }
   newShot() {
     const [d, a, pts, name] = SPOTS[this.i];
     this.spot = this.spotPos(d, a); this.pts = pts;
     const rim = this.hoop.rim, toRim = new THREE.Vector3(rim.x - this.spot.x, 0, rim.z - this.spot.z).normalize();
     this.dirBase = Math.atan2(toRim.x, toRim.z); this.aim = 0; this.power = 0; this.charging = false; this.phase = 'aim'; this.t = 0;
+    this.clock = 10; this.sweep = Math.max(0.55, 0.85 - this.i * 0.03); this.trailPts = []; this.trail.visible = false; this.hands.visible = true; this.relT = -1;
     this.release0 = this.spot.clone().add(toRim.clone().multiplyScalar(0.35)); this.release0.y += 2.15;
     this.ball.position.copy(this.release0).add(new THREE.Vector3(0, -0.35, 0));
     // timing sensitivity: harder the further you are. The green zone is found by playing the shot out at every
@@ -143,6 +170,7 @@ export class Hoops {
     }
     if (zh - zl > 0.04) { zl += 0.01; zh -= 0.01; } // show it a hair inside the true edges
     this.zone = [zl, zh];
+    this.q('.hp-power').classList.toggle('fire', this.onFire);
     this.q('.hp-power u').style.left = (zl * 100).toFixed(1) + '%'; this.q('.hp-power u').style.width = Math.max(1, (zh - zl) * 100).toFixed(1) + '%';
     this.q('.hp-spot').textContent = `${name} · ${pts} point${pts > 1 ? 's' : ''}`;
     this.msg(''); this.drawTop();
@@ -170,9 +198,9 @@ export class Hoops {
     if (this.phase !== 'aim' || !this.charging) return;
     this.charging = false;
     this.vel = this.launch(this.power, this.aim);
-    this.ball.position.copy(this.release0); this.phase = 'flight'; this.t = 0; this.acc = 0;
+    this.ball.position.copy(this.release0); this.phase = 'flight'; this.t = 0; this.acc = 0; this.relT = 0;
     this.st = { scored: false, touched: false, prevY: this.release0.y, live: true };
-    this.sound.beep(180, 0.08, 'sine', 0.12);
+    this.sound.beep(180, 0.08, 'sine', 0.12); this.trailPts = []; this.trail.visible = true;
   }
   /** one physics sub-step: gravity, move, bounce; returns true the moment the ball drops through the rim */
   step(b, v, h, st) {
@@ -208,7 +236,7 @@ export class Hoops {
         // touching the rim from the inside: the rim and net steer it down into the basket
         const hx = b.x - rim.x, hz = b.z - rim.z, hd = Math.hypot(hx, hz);
         if (hd < RIM_R && v.y < 1) { v.x -= (hx / (hd || 1)) * 0.9; v.z -= (hz / (hd || 1)) * 0.9; v.y = Math.min(v.y, -0.3); }
-        if (!st.touched && st.live) this.sound.beep(320 + Math.random() * 60, 0.06, 'square', 0.05);
+        if (!st.touched && st.live) { this.sound.beep(320 + Math.random() * 60, 0.06, 'square', 0.05); this.netKick = Math.max(this.netKick, 0.35); this.netAge = 0; }
         st.touched = true;
       }
     }
@@ -222,9 +250,18 @@ export class Hoops {
     // ground
     if (b.y < c.y + BALL_R) { b.y = c.y + BALL_R; if (v.y < -0.8 && st.live) this.sound.beep(90, 0.06, 'sine', 0.12); v.y = Math.abs(v.y) > 0.6 ? -v.y * 0.62 : 0; v.x *= 0.9; v.z *= 0.9; }
   }
-  update(dt) {
+  /** the shot clock ran out: count it as a miss */
+  violation() {
+    this.charging = false; this.phase = 'result'; this.t = 0; this.acc = 0;
+    this.vel = new THREE.Vector3(0, 1.5, 0); this.st = { scored: false, touched: false, prevY: this.ball.position.y, live: true };
+    this.msg('SHOT CLOCK!', 'bad'); this.sound.buzzer && this.sound.buzzer();
+    this.streak = 0; this.setFire(false); this.hands.visible = false;
+  }
+  update(dt, night = 0) {
     this.t += dt;
-    if (this.charging) { this.power += this.dir * dt / 0.85; if (this.power > 1) { this.power = 1; this.dir = -1; } if (this.power < 0) { this.power = 0; this.dir = 1; } }
+    if (this.phase === 'aim') { this.clock -= dt; if (this.clock <= 0) this.violation(); }
+    const ck = this.q('.hp-clock'); ck.textContent = this.phase === 'aim' ? Math.ceil(Math.max(0, this.clock)) : ''; ck.classList.toggle('low', this.phase === 'aim' && this.clock < 3.5);
+    if (this.charging) { this.power += this.dir * dt / this.sweep; if (this.power > 1) { this.power = 1; this.dir = -1; } if (this.power < 0) { this.power = 0; this.dir = 1; } }
     this.q('.hp-power i').style.left = (this.power * 100).toFixed(1) + '%';
     this.q('.hp-power').style.opacity = this.phase === 'aim' ? 1 : 0.35;
     const rim = this.hoop.rim;
@@ -240,14 +277,21 @@ export class Hoops {
         this.acc -= H; const h = H;
         // a basket: the ball drops down through the rim, close to its centre
         if (this.step(this.ball.position, this.vel, h, this.st)) {
-          this.points += this.pts; this.made++;
-          this.msg(this.st.touched ? (this.pts >= 3 ? `+${this.pts} &nbsp;BUCKET!` : `+${this.pts} &nbsp;IN!`) : `+${this.pts} &nbsp;SWISH!`, 'good');
+          const bonus = this.onFire ? 1 : 0, got = this.pts + bonus;
+          this.points += got; this.made++; this.streak++; this.bestStreak = Math.max(this.bestStreak, this.streak);
+          const lit = !this.onFire && this.streak >= 3;
+          if (lit || this.onFire) this.setFire(true); else this.setFire(false);
+          const word = this.st.touched ? (this.pts >= 3 ? 'BUCKET!' : 'IN!') : 'SWISH!';
+          this.msg(`+${got} &nbsp;${word}${lit ? '<small>ON FIRE! +1 per basket</small>' : bonus ? '<small>on fire bonus +1</small>' : ''}`, 'good');
           this.sound.beep(660, 0.12, 'square', 0.07); this.sound.beep(990, 0.18, 'square', 0.07, 0.1);
+          if (!this.st.touched && this.sound.swish) this.sound.swish();
+          if ((this.pts >= 3 || lit || this.onFire) && this.sound.cheer) this.sound.cheer(this.pts >= 5 || lit);
+          this.netKick = 1; this.netAge = 0;
           this.vel.multiplyScalar(0.35);
         }
       }
       this.ball.rotation.x += dt * 8;
-      if (this.phase === 'flight' && this.t > 1.2 && !this.st.scored && (this.ball.position.y < rim.y - 0.6 || this.t > 3)) { this.msg(this.st.touched ? 'Rattled out!' : 'Miss!', 'bad'); this.phase = 'result'; }
+      if (this.phase === 'flight' && this.t > 1.2 && !this.st.scored && (this.ball.position.y < rim.y - 0.6 || this.t > 3)) { this.msg(this.st.touched ? 'Rattled out!' : 'Miss!', 'bad'); this.phase = 'result'; this.streak = 0; this.setFire(false); }
       if (this.phase === 'flight' && this.st.scored) this.phase = 'result';
       if (this.phase === 'result' && this.t > 3.2) {
         this.i++;
@@ -255,17 +299,54 @@ export class Hoops {
           this.phase = 'over';
           const nb = this.points > this.best; if (nb) { this.best = this.points; try { localStorage.setItem(BEST_KEY, String(this.points)); } catch { /* private */ } }
           const rate = this.points >= 24 ? 'Hall of fame!' : this.points >= 17 ? 'All-star!' : this.points >= 10 ? 'Starting five.' : this.points >= 5 ? 'Bench warmer.' : 'Keep practising!';
-          this.msg(`<em>${this.points} POINTS</em><small>${this.made}/10 made · ${rate}${nb ? ' · NEW BEST' : ''}</small><small>click or press R to play again</small>`, 'end');
+          this.msg(`<em>${this.points} POINTS</em><small>${this.made}/10 made · best streak ${this.bestStreak} · ${rate}${nb ? ' · NEW BEST' : ''}</small><small>click or press R to play again</small>`, 'end');
+          if (nb && this.sound.cheer) this.sound.cheer(true);
           this.drawTop();
         } else this.newShot();
       }
       this.drawTop();
     }
-    // camera: behind the shooter, looking at the rim
+    // ball trail
+    if (this.trail.visible) {
+      if (this.phase === 'flight' || (this.phase === 'result' && this.t < 1.6)) { this.trailPts.unshift(this.ball.position.clone()); if (this.trailPts.length > this.NT) this.trailPts.length = this.NT; }
+      else if (this.trailPts.length) this.trailPts.pop();
+      for (let k = 0; k < this.NT; k++) {
+        const p = this.trailPts[k], sc = p ? (1 - k / this.NT) * (this.onFire ? 1.15 + Math.random() * 0.3 : 0.85) : 0;
+        this.trail.setMatrixAt(k, this.M.compose(p || this.V.set(0, -1e4, 0), this.Q.identity(), this.S.set(sc + 1e-4, sc + 1e-4, sc + 1e-4)));
+      }
+      this.trail.instanceMatrix.needsUpdate = true;
+    }
+    if (this.onFire) this.ball.material.emissiveIntensity = 0.6 + Math.sin(this.t * 14) * 0.25;
+    // hands: hold the ball while aiming, flick through on release, then drop out of view
     const back = new THREE.Vector3(this.spot.x - rim.x, 0, this.spot.z - rim.z).normalize();
+    if (this.hands.visible) {
+      const yaw = Math.atan2(-back.x, -back.z), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+      const fl = this.relT >= 0 ? Math.min(1, (this.relT += dt) / 0.25) : 0;
+      if (this.relT > 0.4) this.hands.visible = false;
+      const bp = this.phase === 'aim' ? this.ball.position : this.release0;
+      this.arms.forEach((a) => {
+        const sd = a.userData.side;
+        a.position.set(bp.x + rx * sd * 0.13 + back.x * 0.04, bp.y - 0.09 + fl * 0.12, bp.z + rz * sd * 0.13 + back.z * 0.04);
+        a.rotation.set(0, 0, 0); a.rotation.y = yaw; a.rotateX(-0.95 - fl * 0.7); a.rotateY(-sd * 0.18);
+      });
+    }
+    // net: whips down on a swish, wobbles on a rim hit
+    const net = this.hoop.net;
+    if (net && (this.netKick > 0.001 || this.netAge < 3)) {
+      this.netAge += dt; const k = this.netKick * Math.exp(-this.netAge * 3.2), w = Math.sin(this.netAge * 20) * k, P = net.geo.attributes.position.array, R = net.rest;
+      for (let i = 0; i < P.length; i += 6) {
+        P[i] = R[i]; P[i + 1] = R[i + 1]; P[i + 2] = R[i + 2];
+        P[i + 3] = rim.x + (R[i + 3] - rim.x) * (1 - 0.35 * Math.abs(w)); P[i + 4] = R[i + 4] - 0.16 * Math.abs(k) - 0.05 * w; P[i + 5] = rim.z + (R[i + 5] - rim.z) * (1 - 0.35 * Math.abs(w));
+      }
+      net.geo.attributes.position.needsUpdate = true;
+      if (this.netAge > 3) this.netKick = 0;
+    }
+    // camera: behind the shooter, looking at the rim (and a little after the ball while it flies)
     const want = this.spot.clone().addScaledVector(back, 2.6); want.y = this.c.y + 2.3;
     this.camera.position.lerp(want, 1 - Math.exp(-5 * dt));
     this.camera.up.set(0, 1, 0);
-    this.camera.lookAt(rim.x, rim.y - 0.3, rim.z);
+    const follow = this.phase === 'flight' ? 0.3 : 0;
+    this.look = (this.look || new THREE.Vector3(rim.x, rim.y - 0.3, rim.z)).lerp(this.V.set(rim.x + (this.ball.position.x - rim.x) * follow, rim.y - 0.3 + (this.ball.position.y - rim.y) * follow, rim.z + (this.ball.position.z - rim.z) * follow), 1 - Math.exp(-4 * dt));
+    this.camera.lookAt(this.look);
   }
 }

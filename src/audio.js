@@ -34,6 +34,21 @@ export function boom() {
   f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0.9; s.buffer = buf; s.connect(f); f.connect(g); g.connect(master); s.start();
   beep(55, 0.9, 'sine', 0.5); beep(38, 1.2, 'triangle', 0.4, 0.05);
 }
+function noise(dur, type, freq, q, vol, attack = 0.01) {
+  if (!ctx) return;
+  const len = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t = ctx.currentTime;
+  f.type = type; f.frequency.value = freq; f.Q.value = q; s.buffer = buf;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t);
+}
+/** basketball net: a short airy swish */
+export const swish = () => noise(0.32, 'highpass', 2600, 0.7, 0.32, 0.02);
+/** crowd: a swelling roar */
+export const cheer = (big = false) => { noise(big ? 2.2 : 1.4, 'bandpass', 900, 0.6, big ? 0.28 : 0.18, 0.25); noise(big ? 2 : 1.2, 'bandpass', 1800, 1.2, 0.08, 0.3); };
+/** shot clock buzzer */
+export const buzzer = () => { beep(110, 0.7, 'square', 0.12); beep(165, 0.7, 'square', 0.06); };
 /** tape rewind: a fast rising warble */
 export function rewind() {
   if (!ctx) return;
